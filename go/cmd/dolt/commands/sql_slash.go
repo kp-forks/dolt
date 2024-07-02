@@ -45,8 +45,7 @@ var slashCmds = []cli.Command{
 // This is quick and dirty for slash command prototype, and doesn't try and handle all the crazy edge cases that come
 // up with supporting many types of quotes. Also, pretty sure a dangling quote will break it. But it's a start.
 func parseSlashCmd(cmd string) []string {
-
-	// TODO: determine if we can get rid of the ";" as the terminator for cli commands.
+	cmd = strings.TrimPrefix(cmd, `\`)
 	cmd = strings.TrimSuffix(cmd, ";")
 	cmd = strings.TrimRight(cmd, " \t\n\r\v\f")
 	cmd = strings.TrimLeft(cmd, " \t\n\r\v\f")
@@ -68,23 +67,14 @@ func parseSlashCmd(cmd string) []string {
 	return cmdWords
 }
 
-func handleSlashCommand(sqlCtx *sql.Context, fullCmd string, cliCtx cli.CliContext) error {
+func handleSlashCommand(sqlCtx *sql.Context, subCmd cli.Command, fullCmd string, cliCtx cli.CliContext) error {
 	cliCmd := parseSlashCmd(fullCmd)
 	if len(cliCmd) == 0 {
-		return fmt.Errorf("Empty command. Use `/help;` for help.")
+		return fmt.Errorf("Empty command. Use `\\help` for help.")
 	}
 
-	subCmd := cliCmd[0]
 	subCmdArgs := cliCmd[1:]
-	status := 1
-
-	subCmdInst, ok := findSlashCmd(subCmd)
-	if ok {
-		status = subCmdInst.Exec(sqlCtx, subCmd, subCmdArgs, nil, cliCtx)
-	} else {
-		return fmt.Errorf("Unknown command: %s. Use `/help;` for a list of command.", subCmd)
-	}
-
+	status := subCmd.Exec(sqlCtx, subCmd.Name(), subCmdArgs, nil, cliCtx)
 	if status != 0 {
 		return fmt.Errorf("error executing command: %s", cliCmd)
 	}
@@ -103,7 +93,7 @@ func (s SlashHelp) Description() string {
 
 func (s SlashHelp) Docs() *cli.CommandDocumentation {
 	return &cli.CommandDocumentation{
-		CommandStr: "/help",
+		CommandStr: "\\help",
 		ShortDesc:  "What you see right now.",
 		LongDesc:   "It would seem that you are crying out for help. Please join us on Discord (https://discord.gg/gqr7K4VNKe)!",
 		Synopsis:   []string{},
@@ -138,13 +128,12 @@ func (s SlashHelp) Exec(ctx context.Context, _ string, args []string, _ *env.Dol
 
 	cli.Println("Dolt SQL Shell Help")
 	cli.Printf("Default behavior is to interpret SQL statements.     (e.g. '%sselect * from my_table;')\n", prompt)
-	cli.Printf("Dolt CLI commands can be invoked with a leading '/'. (e.g. '%s/status;')\n", prompt)
-	cli.Println("All statements are terminated with a ';'.")
+	cli.Printf("Dolt CLI commands can be invoked with a leading '\\'. (e.g. '%s\\status')\n", prompt)
 	cli.Println("\nAvailable commands:")
 	for _, cmdInst := range slashCmds {
 		cli.Println(fmt.Sprintf("  %10s - %s", cmdInst.Name(), cmdInst.Description()))
 	}
-	cli.Printf("\nFor more information on a specific command, type '/help <command>;' (e.g. '%s/help status;')\n", prompt)
+	cli.Printf("\nFor more information on a specific command, type '\\help <command>' (e.g. '%s\\help status')\n", prompt)
 
 	moreWords := `
 -+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-
@@ -171,7 +160,16 @@ func (s SlashHelp) ArgParser() *argparser.ArgParser {
 	return &argparser.ArgParser{}
 }
 
+// findSlashCmd finds a command by name in the list of slash commands. This function is meant to be flexible and can
+// take just command names or a command with arguments and a "\" prefix.
 func findSlashCmd(cmd string) (cli.Command, bool) {
+	cmd = strings.TrimPrefix(cmd, `\`)
+	words := strings.Split(cmd, " ")
+	if len(words) == 0 {
+		return nil, false
+	}
+	cmd = words[0]
+
 	for _, cmdInst := range slashCmds {
 		if cmdInst.Name() == cmd {
 			return cmdInst, true
