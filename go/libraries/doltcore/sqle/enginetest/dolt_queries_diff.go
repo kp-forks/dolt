@@ -19,7 +19,7 @@ import (
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
 
-	"github.com/dolthub/dolt/go/libraries/doltcore/sqle"
+	"github.com/dolthub/dolt/go/libraries/doltcore/sqle/dtablefunctions"
 	"github.com/dolthub/dolt/go/libraries/doltcore/sqle/dtables"
 )
 
@@ -671,6 +671,24 @@ var DiffSystemTableScriptTests = []queries.ScriptTest{
 			},
 		},
 	},
+	{
+		Name: "duplicate commit_hash",
+		SetUpScript: []string{
+			"create table t1 (x int primary key)",
+			"create table t2 (x int primary key)",
+			"call dolt_add('.');",
+			"call dolt_commit_hash_out(@commit1, '-Am', 'commit1');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query: "select table_name from dolt_diff where commit_hash = @commit1",
+				Expected: []sql.Row{
+					{"t1"},
+					{"t2"},
+				},
+			},
+		},
+	},
 }
 
 var Dolt1DiffSystemTableScripts = []queries.ScriptTest{
@@ -757,15 +775,15 @@ var DiffTableFunctionScriptTests = []queries.ScriptTest{
 			},
 			{
 				Query:       "SELECT * from dolt_diff(@Commit1, concat('fake', '-', 'branch'), 't');",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_diff(hashof('main'), @Commit2, 't');",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_diff(hashof('main'), @Commit2, LOWER('T'));",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 
 			{
@@ -802,7 +820,7 @@ var DiffTableFunctionScriptTests = []queries.ScriptTest{
 			},
 			{
 				Query:       "SELECT * from dolt_diff('main..main~', LOWER('T'));",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 		},
 	},
@@ -1505,19 +1523,19 @@ var DiffStatTableFunctionScriptTests = []queries.ScriptTest{
 			},
 			{
 				Query:       "SELECT * from dolt_diff_stat(@Commit1, concat('fake', '-', 'branch'), 't');",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_diff_stat(hashof('main'), @Commit2, 't');",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_diff_stat(@Commit1, @Commit2, LOWER('T'));",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_diff_stat('main..main~', LOWER('T'));",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 		},
 	},
@@ -2199,15 +2217,15 @@ var DiffSummaryTableFunctionScriptTests = []queries.ScriptTest{
 			},
 			{
 				Query:       "SELECT * from dolt_diff_summary(@Commit1, concat('fake', '-', 'branch'), 't');",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_diff_summary(hashof('main'), @Commit2, 't');",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_diff_summary(@Commit1, @Commit2, LOWER('T'));",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 		},
 	},
@@ -2963,19 +2981,19 @@ var PatchTableFunctionScriptTests = []queries.ScriptTest{
 			},
 			{
 				Query:       "SELECT * from dolt_patch(@Commit1, concat('fake', '-', 'branch'), 't');",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_patch(hashof('main'), @Commit2, 't');",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_patch(@Commit1, @Commit2, LOWER('T'));",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 			{
 				Query:       "SELECT * from dolt_patch('main..main~', LOWER('T'));",
-				ExpectedErr: sqle.ErrInvalidNonLiteralArgument,
+				ExpectedErr: dtablefunctions.ErrInvalidNonLiteralArgument,
 			},
 		},
 	},

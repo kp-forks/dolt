@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sqle
+package dtablefunctions
 
 import (
 	"fmt"
@@ -427,10 +427,10 @@ func (d *diffSummaryTableFunctionRowIter) Close(context *sql.Context) error {
 
 func getRowFromSummary(ds *diff.TableDeltaSummary) sql.Row {
 	return sql.Row{
-		ds.FromTableName.Name, // from_table_name
-		ds.ToTableName.Name,   // to_table_name
-		ds.DiffType,           // diff_type
-		ds.DataChange,         // data_change
-		ds.SchemaChange,       // schema_change
+		ds.FromTableName.String(), // from_table_name
+		ds.ToTableName.String(),   // to_table_name
+		ds.DiffType,               // diff_type
+		ds.DataChange,             // data_change
+		ds.SchemaChange,           // schema_change
 	}
 }

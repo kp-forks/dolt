@@ -290,15 +290,30 @@ func checkoutRemoteBranch(ctx *sql.Context, dSess *dsess.DoltSession, dbName str
 	}
 
 	if len(remoteRefs) == 0 {
-		if doltdb.IsValidCommitHash(branchName) && apr.Contains(cli.MoveFlag) {
+		if isTag, err := actions.IsTag(ctx, dbData.Ddb, branchName); err != nil {
+			return "", err
+		} else if isTag {
+			// User tried to enter a detached head state, which we don't support.
+			// Inform and suggest that they check-out a new branch at this tag instead.
+			if apr.Contains(cli.MoveFlag) {
+				return "", fmt.Errorf(`dolt does not support a detached head state. To create a branch at this tag, run: 
+	dolt checkout %s -b {new_branch_name}`, branchName)
+			} else {
+				return "", fmt.Errorf(`dolt does not support a detached head state. To create a branch at this tag, run: 
+	CALL DOLT_CHECKOUT('%s', '-b', <new_branch_name>)`, branchName)
+			}
+		}
 
+		if doltdb.IsValidCommitHash(branchName) {
 			// User tried to enter a detached head state, which we don't support.
 			// Inform and suggest that they check-out a new branch at this commit instead.
-
-			return "", fmt.Errorf(`dolt does not support a detached head state. To create a branch at this commit instead, run:
-
-	dolt checkout %s -b {new_branch_name}
-`, branchName)
+			if apr.Contains(cli.MoveFlag) {
+				return "", fmt.Errorf(`dolt does not support a detached head state. To create a branch at this commit instead, run:
+	dolt checkout %s -b {new_branch_name}`, branchName)
+			} else {
+				return "", fmt.Errorf(`dolt does not support a detached head state. To create a branch at this commit instead, run:
+	CALL DOLT_CHECKOUT('%s', '-b', <new_branch_name>)`, branchName)
+			}
 		}
 		return "", fmt.Errorf("error: could not find %s", branchName)
 	} else if len(remoteRefs) == 1 {
@@ -476,9 +491,20 @@ func doGlobalCheckout(ctx *sql.Context, branchName string, isForce bool, isNewBr
 }
 
 func checkoutTables(ctx *sql.Context, roots doltdb.Roots, name string, tables []string) error {
-	// TODO: schema name
-	roots, err := actions.MoveTablesFromHeadToWorking(ctx, roots, doltdb.ToTableNames(tables, doltdb.DefaultSchemaName))
+	tableNames := make([]doltdb.TableName, len(tables))
 
+	for i, table := range tables {
+		tbl, _, exists, err := actions.FindTableInRoots(ctx, roots, table)
+		if err != nil {
+			return err
+		}
+		if !exists {
+			return fmt.Errorf("error: given tables do not exist")
+		}
+		tableNames[i] = tbl
+	}
+
+	roots, err := actions.MoveTablesFromHeadToWorking(ctx, roots, tableNames)
 	if err != nil {
 		if doltdb.IsRootValUnreachable(err) {
 			rt := doltdb.GetUnreachableRootType(err)

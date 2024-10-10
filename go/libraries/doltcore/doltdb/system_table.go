@@ -20,9 +20,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dolthub/dolt/go/libraries/doltcore/schema/typeinfo"
-
 	"github.com/dolthub/dolt/go/libraries/doltcore/schema"
+	"github.com/dolthub/dolt/go/libraries/doltcore/schema/typeinfo"
 	"github.com/dolthub/dolt/go/libraries/utils/funcitr"
 	"github.com/dolthub/dolt/go/libraries/utils/set"
 	"github.com/dolthub/dolt/go/store/types"
@@ -34,11 +33,6 @@ const (
 )
 
 var ErrSystemTableCannotBeModified = errors.New("system tables cannot be dropped or altered")
-
-var OldDocsSchema = schema.MustSchemaFromCols(schema.NewColCollection(
-	schema.NewColumn(DocPkColumnName, schema.DocNameTag, types.StringKind, true, schema.NotNullConstraint{}),
-	schema.NewColumn(DocTextColumnName, schema.DocTextTag, types.StringKind, false),
-))
 
 var DocsSchema schema.Schema
 
@@ -80,7 +74,7 @@ func IsReadOnlySystemTable(name string) bool {
 // IsNonAlterableSystemTable returns whether the table name given is a system table that cannot be dropped or altered
 // by the user.
 func IsNonAlterableSystemTable(name string) bool {
-	return (IsReadOnlySystemTable(name) && !IsFullTextTable(name)) || strings.ToLower(name) == SchemasTableName
+	return (IsReadOnlySystemTable(name) && !IsFullTextTable(name)) || strings.EqualFold(name, SchemasTableName)
 }
 
 // GetNonSystemTableNames gets non-system table names
@@ -140,19 +134,6 @@ func GetGeneratedSystemTables(ctx context.Context, root RootValue) ([]string, er
 	return s.AsSlice(), nil
 }
 
-// GetAllTableNames returns table names for all persisted and generated tables.
-func GetAllTableNames(ctx context.Context, root RootValue) ([]string, error) {
-	n, err := GetNonSystemTableNames(ctx, root)
-	if err != nil {
-		return nil, err
-	}
-	s, err := GetSystemTableNames(ctx, root)
-	if err != nil {
-		return nil, err
-	}
-	return append(n, s...), nil
-}
-
 // The set of reserved dolt_ tables that should be considered part of user space, like any other user-created table,
 // for the purposes of the dolt command line. These tables cannot be created or altered explicitly, but can be updated
 // like normal SQL tables.
@@ -206,7 +187,7 @@ const (
 	DocTableName = "dolt_docs"
 	// DocPkColumnName is the name of the pk column in the docs table
 	DocPkColumnName = "doc_name"
-	//DocTextColumnName is the name of the column containing the document contents in the docs table
+	// DocTextColumnName is the name of the column containing the document contents in the docs table
 	DocTextColumnName = "doc_text"
 )
 

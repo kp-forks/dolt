@@ -24,6 +24,8 @@ import (
 	"strings"
 )
 
+var DefaultUnixSocketFilePath = DefaultMySQLUnixSocketFilePath
+
 // LogLevel defines the available levels of logging for the server.
 type LogLevel string
 
@@ -34,6 +36,7 @@ const (
 	LogLevel_Warning LogLevel = "warning"
 	LogLevel_Error   LogLevel = "error"
 	LogLevel_Fatal   LogLevel = "fatal"
+	LogLevel_Panic   LogLevel = "panic"
 )
 
 const (
@@ -56,7 +59,7 @@ const (
 	DefaultMetricsHost             = ""
 	DefaultMetricsPort             = -1
 	DefaultAllowCleartextPasswords = false
-	DefaultUnixSocketFilePath      = "/tmp/mysql.sock"
+	DefaultMySQLUnixSocketFilePath = "/tmp/mysql.sock"
 	DefaultMaxLoggedQueryLen       = 0
 	DefaultEncodeLoggedQuery       = false
 )
@@ -84,6 +87,8 @@ func (level LogLevel) String() string {
 	case LogLevel_Error:
 		fallthrough
 	case LogLevel_Fatal:
+		fallthrough
+	case LogLevel_Panic:
 		return string(level)
 	default:
 		return "unknown"

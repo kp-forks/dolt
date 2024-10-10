@@ -409,7 +409,7 @@ func (a *binlogReplicaApplier) processBinlogEvent(ctx *sql.Context, engine *gms.
 
 		ctx.SetCurrentDatabase(query.Database)
 		executeQueryWithEngine(ctx, engine, query.SQL)
-		createCommit = strings.ToLower(query.SQL) != "begin"
+		createCommit = !strings.EqualFold(query.SQL, "begin")
 
 	case event.IsRotate():
 		// When a binary log file exceeds the configured size limit, a ROTATE_EVENT is written at the end of the file,
@@ -902,7 +902,7 @@ func convertVitessJsonExpressionString(ctx *sql.Context, value sqltypes.Value) (
 	}
 
 	binder := planbuilder.New(ctx, server.Engine.Analyzer.Catalog, server.Engine.Parser)
-	node, _, _, qFlags, err := binder.Parse("SELECT "+strValue, false)
+	node, _, _, qFlags, err := binder.Parse("SELECT "+strValue, nil, false)
 	if err != nil {
 		return nil, err
 	}

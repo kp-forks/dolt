@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sqle
+package dtablefunctions
 
 import (
 	"fmt"
@@ -27,7 +27,7 @@ import (
 	"github.com/dolthub/dolt/go/libraries/doltcore/diff"
 	"github.com/dolthub/dolt/go/libraries/doltcore/schema"
 	"github.com/dolthub/dolt/go/libraries/doltcore/sqle/dsess"
-	"github.com/dolthub/dolt/go/libraries/doltcore/table/editor"
+	"github.com/dolthub/dolt/go/libraries/doltcore/sqle/sqlfmt"
 )
 
 const schemaDiffDefaultRowCount = 100
@@ -314,18 +314,14 @@ func (ds *SchemaDiffTableFunction) RowIter(ctx *sql.Context, row sql.Row) (sql.R
 		var fromCreate, toCreate string
 
 		if delta.FromTable != nil {
-			fromSqlDb := NewUserSpaceDatabase(fromRoot, editor.Options{})
-			fromSqlCtx, fromEngine, _ := PrepareCreateTableStmt(ctx, fromSqlDb)
-			fromCreate, err = GetCreateTableStmt(fromSqlCtx, fromEngine, delta.FromName.Name)
+			fromCreate, err = sqlfmt.GenerateCreateTableStatement(delta.FromName.Name, delta.FromSch, delta.FromFks, delta.FromFksParentSch)
 			if err != nil {
 				return nil, err
 			}
 		}
 
 		if delta.ToTable != nil {
-			toSqlDb := NewUserSpaceDatabase(toRoot, editor.Options{})
-			toSqlCtx, toEngine, _ := PrepareCreateTableStmt(ctx, toSqlDb)
-			toCreate, err = GetCreateTableStmt(toSqlCtx, toEngine, delta.ToName.Name)
+			toCreate, err = sqlfmt.GenerateCreateTableStatement(delta.ToName.Name, delta.ToSch, delta.ToFks, delta.ToFksParentSch)
 			if err != nil {
 				return nil, err
 			}
@@ -338,10 +334,10 @@ func (ds *SchemaDiffTableFunction) RowIter(ctx *sql.Context, row sql.Row) (sql.R
 		}
 
 		row := sql.Row{
-			fromName.Name, // 0
-			toName.Name,   // 1
-			fromCreate,    // 2
-			toCreate,      // 3
+			fromName.String(), // from_table_name
+			toName.String(),   // to_table_name
+			fromCreate,        // from_create_statement
+			toCreate,          // to_create_statement
 		}
 		dataRows = append(dataRows, row)
 	}

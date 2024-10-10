@@ -799,9 +799,9 @@ func (db Database) checkForPgCatalogTable(ctx *sql.Context, tableName string) (s
 // case-insensitive manner. The table is returned along with its case-sensitive matched name. An error is returned if
 // no such table exists.
 func (db Database) resolveUserTable(ctx *sql.Context, root doltdb.RootValue, tableName string) (doltdb.TableName, *doltdb.Table, bool, error) {
-	// TODO: dolt_schemas needs work to be compatible with multiple schemas
-	hasDoltPrefix := doltdb.HasDoltPrefix(tableName)
-	if resolve.UseSearchPath && db.schemaName == "" && !hasDoltPrefix {
+	// dolt_docs table is branch-specific, not schema-specific for doltgres
+	isDoltDocs := tableName == doltdb.DocTableName
+	if resolve.UseSearchPath && db.schemaName == "" && !isDoltDocs {
 		return resolve.TableWithSearchPath(ctx, root, tableName)
 	} else {
 		return db.tableInsensitive(ctx, root, tableName)
@@ -923,14 +923,32 @@ func (db Database) GetAllTableNames(ctx *sql.Context) ([]string, error) {
 	return db.getAllTableNames(ctx, root)
 }
 
-func (db Database) getAllTableNames(ctx context.Context, root doltdb.RootValue) ([]string, error) {
+func (db Database) getAllTableNames(ctx *sql.Context, root doltdb.RootValue) ([]string, error) {
 	systemTables, err := doltdb.GetGeneratedSystemTables(ctx, root)
 	if err != nil {
 		return nil, err
 	}
-	result, err := root.GetTableNames(ctx, db.schemaName)
+
+	var result []string
+	// If we are in a schema-enabled session and the schema name is not set, we need to union all table names in all
+	// schemas in the search_path
+	if resolve.UseSearchPath && db.schemaName == "" {
+		names, err := resolve.TablesOnSearchPath(ctx, root)
+		if err != nil {
+			return nil, err
+		}
+		// TODO: this method should probably return TableNames, but need to iron out the effective schema for system
+		//  tables first
+		result = doltdb.FlattenTableNames(names)
+	} else {
+		result, err = root.GetTableNames(ctx, db.schemaName)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	result = append(result, systemTables...)
-	return result, err
+	return result, nil
 }
 
 func filterDoltInternalTables(tblNames []string) []string {
@@ -1181,7 +1199,7 @@ OuterLoop:
 }
 
 // createSqlTable is the private version of CreateTable. It doesn't enforce any table name checks.
-func (db Database) createSqlTable(ctx *sql.Context, tableName string, schemaName string, sch sql.PrimaryKeySchema, collation sql.CollationID, comment string) error {
+func (db Database) createSqlTable(ctx *sql.Context, table string, schemaName string, sch sql.PrimaryKeySchema, collation sql.CollationID, comment string) error {
 	ws, err := db.GetWorkingSet(ctx)
 	if err != nil {
 		return err
@@ -1196,10 +1214,11 @@ func (db Database) createSqlTable(ctx *sql.Context, tableName string, schemaName
 		db.schemaName = schemaName
 	}
 
-	if exists, err := root.HasTable(ctx, doltdb.TableName{Name: tableName, Schema: schemaName}); err != nil {
+	tableName := doltdb.TableName{Name: table, Schema: schemaName}
+	if exists, err := root.HasTable(ctx, tableName); err != nil {
 		return err
 	} else if exists {
-		return sql.ErrTableAlreadyExists.New(tableName)
+		return sql.ErrTableAlreadyExists.New(table)
 	}
 
 	headRoot, err := db.GetHeadRoot(ctx)
@@ -1215,7 +1234,7 @@ func (db Database) createSqlTable(ctx *sql.Context, tableName string, schemaName
 
 	// Prevent any tables that use Spatial Types as Primary Key from being created
 	if schema.IsUsingSpatialColAsKey(doltSch) {
-		return schema.ErrUsingSpatialKey.New(tableName)
+		return schema.ErrUsingSpatialKey.New(tableName.Name)
 	}
 
 	// Prevent any tables that use BINARY, CHAR, VARBINARY, VARCHAR prefixes
@@ -1225,14 +1244,14 @@ func (db Database) createSqlTable(ctx *sql.Context, tableName string, schemaName
 		if err != nil {
 			return err
 		}
-		ait.AddNewTable(tableName)
+		ait.AddNewTable(tableName.Name)
 	}
 
-	return db.createDoltTable(ctx, tableName, schemaName, root, doltSch)
+	return db.createDoltTable(ctx, tableName.Name, tableName.Schema, root, doltSch)
 }
 
 // createIndexedSqlTable is the private version of createSqlTable. It doesn't enforce any table name checks.
-func (db Database) createIndexedSqlTable(ctx *sql.Context, tableName string, schemaName string, sch sql.PrimaryKeySchema, idxDef sql.IndexDef, collation sql.CollationID) error {
+func (db Database) createIndexedSqlTable(ctx *sql.Context, table string, schemaName string, sch sql.PrimaryKeySchema, idxDef sql.IndexDef, collation sql.CollationID) error {
 	ws, err := db.GetWorkingSet(ctx)
 	if err != nil {
 		return err
@@ -1247,10 +1266,11 @@ func (db Database) createIndexedSqlTable(ctx *sql.Context, tableName string, sch
 		db.schemaName = schemaName
 	}
 
-	if exists, err := root.HasTable(ctx, doltdb.TableName{Name: tableName, Schema: schemaName}); err != nil {
+	tableName := doltdb.TableName{Name: table, Schema: schemaName}
+	if exists, err := root.HasTable(ctx, tableName); err != nil {
 		return err
 	} else if exists {
-		return sql.ErrTableAlreadyExists.New(tableName)
+		return sql.ErrTableAlreadyExists.New(tableName.Name)
 	}
 
 	headRoot, err := db.GetHeadRoot(ctx)
@@ -1265,7 +1285,7 @@ func (db Database) createIndexedSqlTable(ctx *sql.Context, tableName string, sch
 
 	// Prevent any tables that use Spatial Types as Primary Key from being created
 	if schema.IsUsingSpatialColAsKey(doltSch) {
-		return schema.ErrUsingSpatialKey.New(tableName)
+		return schema.ErrUsingSpatialKey.New(tableName.Name)
 	}
 
 	// Prevent any tables that use BINARY, CHAR, VARBINARY, VARCHAR prefixes in Primary Key
@@ -1281,10 +1301,10 @@ func (db Database) createIndexedSqlTable(ctx *sql.Context, tableName string, sch
 		if err != nil {
 			return err
 		}
-		ait.AddNewTable(tableName)
+		ait.AddNewTable(tableName.Name)
 	}
 
-	return db.createDoltTable(ctx, tableName, schemaName, root, doltSch)
+	return db.createDoltTable(ctx, tableName.Name, tableName.Schema, root, doltSch)
 }
 
 // createDoltTable creates a table on the database using the given dolt schema while not enforcing table baseName checks.
@@ -1349,6 +1369,7 @@ func (db Database) CreateSchema(ctx *sql.Context, schemaName string) error {
 	if err := dsess.CheckAccessForDb(ctx, db, branch_control.Permissions_Write); err != nil {
 		return err
 	}
+
 	root, err := db.GetRoot(ctx)
 	if err != nil {
 		return err
@@ -1375,11 +1396,15 @@ func (db Database) CreateSchema(ctx *sql.Context, schemaName string) error {
 
 // GetSchema implements sql.SchemaDatabase
 func (db Database) GetSchema(ctx *sql.Context, schemaName string) (sql.DatabaseSchema, bool, error) {
-	ws, err := db.GetWorkingSet(ctx)
+	// For doltgres, the information_schema database should be a schema.
+	if schemaName == sql.InformationSchemaDatabaseName {
+		return newInformationSchemaDatabase(db.Name()), true, nil
+	}
+
+	root, err := db.GetRoot(ctx)
 	if err != nil {
 		return nil, false, err
 	}
-	root := ws.WorkingRoot()
 
 	schemas, err := root.GetDatabaseSchemas(ctx)
 	if err != nil {
@@ -1419,18 +1444,17 @@ func (db Database) AllSchemas(ctx *sql.Context) ([]sql.DatabaseSchema, error) {
 		return []sql.DatabaseSchema{db}, nil
 	}
 
-	ws, err := db.GetWorkingSet(ctx)
+	root, err := db.GetRoot(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	root := ws.WorkingRoot()
 	schemas, err := root.GetDatabaseSchemas(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	dbSchemas := make([]sql.DatabaseSchema, len(schemas))
+	dbSchemas := make([]sql.DatabaseSchema, len(schemas)+1)
 	for i, schema := range schemas {
 		sdb := db
 		sdb.schemaName = schema.Name
@@ -1440,6 +1464,9 @@ func (db Database) AllSchemas(ctx *sql.Context) ([]sql.DatabaseSchema, error) {
 		}
 		dbSchemas[i] = handledDb
 	}
+
+	// For doltgres, the information_schema database should be a schema.
+	dbSchemas[len(schemas)] = newInformationSchemaDatabase(db.Name())
 
 	return dbSchemas, nil
 }
@@ -1579,7 +1606,7 @@ func getViewDefinitionFromSchemaFragmentsOfView(ctx *sql.Context, tbl *WritableD
 			}
 		}
 
-		if strings.ToLower(fragment.name) == strings.ToLower(viewName) {
+		if strings.EqualFold(fragment.name, viewName) {
 			found = true
 			viewDef = views[i]
 		}
@@ -1727,7 +1754,7 @@ func (db Database) GetEvent(ctx *sql.Context, name string) (sql.EventDefinition,
 	}
 
 	for _, frag := range frags {
-		if strings.ToLower(frag.name) == strings.ToLower(name) {
+		if strings.EqualFold(frag.name, name) {
 			event, err := db.createEventDefinitionFromFragment(ctx, frag)
 			if err != nil {
 				return sql.EventDefinition{}, false, err
@@ -1815,7 +1842,7 @@ func (db Database) doltSchemaTableHash(ctx *sql.Context) (hash.Hash, error) {
 func (db Database) createEventDefinitionFromFragment(ctx *sql.Context, frag schemaFragment) (*sql.EventDefinition, error) {
 	b := planbuilder.New(ctx, db.getCatalog(ctx), sql.NewMysqlParser())
 	b.SetParserOptions(sql.NewSqlModeFromString(frag.sqlMode).ParserOptions())
-	parsed, _, _, _, err := b.Parse(updateEventStatusTemporarilyForNonDefaultBranch(db.revision, frag.fragment), false)
+	parsed, _, _, _, err := b.Parse(updateEventStatusTemporarilyForNonDefaultBranch(db.revision, frag.fragment), nil, false)
 	if err != nil {
 		return nil, err
 	}

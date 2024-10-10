@@ -332,6 +332,34 @@ var DoltStatsIOTests = []queries.ScriptTest{
 		},
 	},
 	{
+		Name: "comma encoding bug",
+		SetUpScript: []string{
+			`create table a (a varbinary (32) primary key)`,
+			"insert into a values ('hello, world')",
+			"analyze table a",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query:    "select count(*) from dolt_statistics",
+				Expected: []sql.Row{{1}},
+			},
+		},
+	},
+	{
+		Name: "comma encoding mcv bug",
+		SetUpScript: []string{
+			`create table ab (a int primary key, b varbinary (32), t timestamp, index (b,t))`,
+			"insert into ab values (1, 'no thank you, world', '2024-03-12 01:18:53'), (2, 'hi, world', '2024-03-12 01:18:53'), (3, 'hello, world', '2024-03-12 01:18:53'), (4, 'hello, world', '2024-03-12 01:18:53'),(5, 'hello, world', '2024-03-12 01:18:53'), (6, 'hello, world', '2024-03-12 01:18:53')",
+			"analyze table ab",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query:    "select count(*) from dolt_statistics",
+				Expected: []sql.Row{{2}},
+			},
+		},
+	},
+	{
 		Name: "boundary nils don't panic when trying to convert to the zero type",
 		SetUpScript: []string{
 			"CREATE table xy (x bigint primary key, y varchar(10), key(y,x));",
@@ -345,6 +373,49 @@ var DoltStatsIOTests = []queries.ScriptTest{
 					{"mydb", "xy", "primary", "x", "bigint"},
 					{"mydb", "xy", "y", "y,x", "varchar(10),bigint"},
 				},
+			},
+		},
+	},
+	{
+		Name: "binary types round-trip",
+		SetUpScript: []string{
+			"CREATE table xy (x bigint primary key, y varbinary(10), z binary(14), key(y(9)), key(z));",
+			"insert into xy values (0,'row 1', 'row 1'),(1,'row 2', 'row 1')",
+			"analyze table xy",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query: "select database_name, table_name, index_name, columns, types from dolt_statistics",
+				Expected: []sql.Row{
+					{"mydb", "xy", "y", "y", "varbinary(10)"},
+					{"mydb", "xy", "primary", "x", "bigint"},
+					{"mydb", "xy", "z", "z", "binary(14)"},
+				},
+			},
+			{
+				Query:    "select count(*) from dolt_statistics",
+				Expected: []sql.Row{{3}},
+			},
+		},
+	},
+	{
+		Name: "timestamp types round-trip",
+		SetUpScript: []string{
+			"CREATE table xy (x bigint primary key, y timestamp, key(y));",
+			"insert into xy values (0,'2024-03-11 18:52:44'),(1,'2024-03-11 19:22:12')",
+			"analyze table xy",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query: "select database_name, table_name, index_name, columns, types from dolt_statistics",
+				Expected: []sql.Row{
+					{"mydb", "xy", "primary", "x", "bigint"},
+					{"mydb", "xy", "y", "y", "timestamp"},
+				},
+			},
+			{
+				Query:    "select count(*) from dolt_statistics",
+				Expected: []sql.Row{{2}},
 			},
 		},
 	},
@@ -546,6 +617,9 @@ var StatBranchTests = []queries.ScriptTest{
 			},
 			{
 				Query: "call dolt_stats_stop()",
+			},
+			{
+				Query: "select sleep(.1)",
 			},
 			{
 				Query: "call dolt_stats_drop()",

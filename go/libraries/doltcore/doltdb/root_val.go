@@ -328,6 +328,9 @@ func (root *rootValue) HasTable(ctx context.Context, tName TableName) (bool, err
 	return !a.IsEmpty(), nil
 }
 
+// GenerateTagsForNewColColl creates a new ColCollection for the specified |tableName|. Note that this function is only
+// intended to be used from Dolt code, and does not support qualifying a table with a schema name, so it will not work
+// correctly for Doltgres.
 func GenerateTagsForNewColColl(ctx context.Context, root RootValue, tableName string, cc *schema.ColCollection) (*schema.ColCollection, error) {
 	newColNames := make([]string, 0, cc.Size())
 	newColKinds := make([]types.NomsKind, 0, cc.Size())
@@ -337,7 +340,7 @@ func GenerateTagsForNewColColl(ctx context.Context, root RootValue, tableName st
 		return false, nil
 	})
 
-	newTags, err := GenerateTagsForNewColumns(ctx, root, tableName, newColNames, newColKinds, nil)
+	newTags, err := GenerateTagsForNewColumns(ctx, root, TableName{Name: tableName}, newColNames, newColKinds, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +358,7 @@ func GenerateTagsForNewColColl(ctx context.Context, root RootValue, tableName st
 func GenerateTagsForNewColumns(
 	ctx context.Context,
 	root RootValue,
-	tableName string,
+	tableName TableName,
 	newColNames []string,
 	newColKinds []types.NomsKind,
 	headRoot RootValue,
@@ -380,7 +383,7 @@ func GenerateTagsForNewColumns(
 		for i := range newColNames {
 			// Only re-use tags if the noms kind didn't change
 			// TODO: revisit this when new storage format is further along
-			if strings.ToLower(newColNames[i]) == strings.ToLower(col.Name) &&
+			if strings.EqualFold(newColNames[i], col.Name) &&
 				newColKinds[i] == col.TypeInfo.NomsKind() {
 				newTags[i] = &col.Tag
 				break
@@ -405,9 +408,9 @@ func GenerateTagsForNewColumns(
 			continue
 		}
 
-		outputTags[i] = schema.AutoGenerateTag(existingTags, tableName, existingColKinds, newColNames[i], newColKinds[i])
+		outputTags[i] = schema.AutoGenerateTag(existingTags, tableName.Name, existingColKinds, newColNames[i], newColKinds[i])
 		existingColKinds = append(existingColKinds, newColKinds[i])
-		existingTags.Add(outputTags[i], tableName)
+		existingTags.Add(outputTags[i], tableName.Name)
 	}
 
 	return outputTags, nil
@@ -416,13 +419,13 @@ func GenerateTagsForNewColumns(
 func GetExistingColumns(
 	ctx context.Context,
 	root, headRoot RootValue,
-	tableName string,
+	tableName TableName,
 	newColNames []string,
 	newColKinds []types.NomsKind,
 ) ([]schema.Column, error) {
 
 	var existingCols []schema.Column
-	tbl, found, err := root.GetTable(ctx, TableName{Name: tableName})
+	tbl, found, err := root.GetTable(ctx, tableName)
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +440,7 @@ func GetExistingColumns(
 			return false, nil
 		})
 	} else if headRoot != nil {
-		tbl, found, err := headRoot.GetTable(ctx, TableName{Name: tableName})
+		tbl, found, err := headRoot.GetTable(ctx, tableName)
 		if err != nil {
 			return nil, err
 		}
@@ -520,10 +523,9 @@ func (root *rootValue) ResolveTableName(ctx context.Context, tName TableName) (s
 	}
 
 	found := false
-	lwrName := strings.ToLower(tName.Name)
 	resolvedName := tName.Name
 	err = tmIterAll(ctx, tableMap, func(name string, addr hash.Hash) {
-		if found == false && lwrName == strings.ToLower(name) {
+		if found == false && strings.EqualFold(tName.Name, name) {
 			resolvedName = name
 			found = true
 		}
@@ -626,15 +628,15 @@ func (root *rootValue) getTableMap(ctx context.Context, schemaName string) (tabl
 	return root.st.GetTablesMap(ctx, root.vrw, root.ns, schemaName)
 }
 
-func TablesWithDataConflicts(ctx context.Context, root RootValue) ([]string, error) {
-	names, err := root.GetTableNames(ctx, DefaultSchemaName)
+func TablesWithDataConflicts(ctx context.Context, root RootValue) ([]TableName, error) {
+	names, err := UnionTableNames(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 
-	conflicted := make([]string, 0, len(names))
+	conflicted := make([]TableName, 0, len(names))
 	for _, name := range names {
-		tbl, _, err := root.GetTable(ctx, TableName{Name: name})
+		tbl, _, err := root.GetTable(ctx, name)
 		if err != nil {
 			return nil, err
 		}
@@ -652,16 +654,15 @@ func TablesWithDataConflicts(ctx context.Context, root RootValue) ([]string, err
 }
 
 // TablesWithConstraintViolations returns all tables that have constraint violations.
-func TablesWithConstraintViolations(ctx context.Context, root RootValue) ([]string, error) {
-	// TODO: schema name
-	names, err := root.GetTableNames(ctx, DefaultSchemaName)
+func TablesWithConstraintViolations(ctx context.Context, root RootValue) ([]TableName, error) {
+	names, err := UnionTableNames(ctx, root)
 	if err != nil {
 		return nil, err
 	}
 
-	violating := make([]string, 0, len(names))
+	violating := make([]TableName, 0, len(names))
 	for _, name := range names {
-		tbl, _, err := root.GetTable(ctx, TableName{Name: name})
+		tbl, _, err := root.GetTable(ctx, name)
 		if err != nil {
 			return nil, err
 		}
@@ -787,6 +788,30 @@ func FlattenTableNames(names []TableName) []string {
 		tbls[i] = name.Name
 	}
 	return tbls
+}
+
+// TableNamesAsString returns a comma-separated string of the table names given
+func TableNamesAsString(names []TableName) string {
+	sb := strings.Builder{}
+	for i, name := range names {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(name.String())
+	}
+	return sb.String()
+}
+
+// UnqualifiedTableNamesAsString returns a comma-separated string of the table names given
+func UnqualifiedTableNamesAsString(names []TableName) string {
+	sb := strings.Builder{}
+	for i, name := range names {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(name.Name)
+	}
+	return sb.String()
 }
 
 // DefaultSchemaName is the name of the default schema. Tables with this schema name will be stored in the

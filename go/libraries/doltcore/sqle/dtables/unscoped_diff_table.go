@@ -141,7 +141,7 @@ func (dt *UnscopedDiffTable) PartitionRows(ctx *sql.Context, partition sql.Parti
 
 // GetIndexes implements sql.IndexAddressable
 func (dt *UnscopedDiffTable) GetIndexes(ctx *sql.Context) ([]sql.Index, error) {
-	return index.DoltCommitIndexes(dt.dbName, dt.Name(), dt.ddb, true)
+	return index.DoltCommitIndexes(dt.dbName, dt.Name(), dt.ddb, false)
 }
 
 // IndexedAccess implements sql.IndexAddressable
@@ -240,7 +240,7 @@ func (d *doltDiffWorkingSetRowItr) Next(ctx *sql.Context) (sql.Row, error) {
 
 	sqlRow := sql.NewRow(
 		changeSet,
-		change.TableName.Name,
+		change.TableName.String(),
 		nil, // committer
 		nil, // email
 		nil, // date
@@ -361,7 +361,7 @@ func (itr *doltDiffCommitHistoryRowItr) Next(ctx *sql.Context) (sql.Row, error) 
 
 	return sql.NewRow(
 		h.String(),
-		tableChange.TableName.Name,
+		tableChange.TableName.String(),
 		meta.Name,
 		meta.Email,
 		meta.Time(),

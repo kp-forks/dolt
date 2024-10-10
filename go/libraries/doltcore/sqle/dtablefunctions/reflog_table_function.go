@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package sqle
+package dtablefunctions
 
 import (
 	"fmt"
@@ -138,7 +138,7 @@ func (rltf *ReflogTableFunction) RowIter(ctx *sql.Context, row sql.Row) (sql.Row
 				}
 
 				// Skip refs that don't match the target we're looking for
-				if strings.ToLower(id) != strings.ToLower(refName) {
+				if !strings.EqualFold(id, refName) {
 					return nil
 				}
 			}
