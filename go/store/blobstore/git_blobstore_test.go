@@ -159,7 +159,7 @@ func TestGitBlobstore_RemoteManaged_ExistsFetchesAndAligns(t *testing.T) {
 	require.True(t, ok)
 
 	require.Equal(t, DoltDataRef, bs.remoteRef)
-	require.Equal(t, RemoteTrackingRef("origin", DoltDataRef), bs.remoteTrackingRef)
+	require.True(t, strings.HasPrefix(bs.remoteTrackingRef, "refs/dolt/remotes/origin/dolt/data/"))
 	require.NotEqual(t, bs.remoteRef, bs.localRef)
 	require.NotEqual(t, bs.remoteTrackingRef, bs.localRef)
 	require.True(t, strings.HasPrefix(bs.localRef, "refs/dolt/blobstore/origin/dolt/data/"))
@@ -188,11 +188,65 @@ func TestGitBlobstore_RemoteAndLocalRefNaming_ConfigurableRemoteRef(t *testing.T
 	require.NoError(t, err)
 
 	require.Equal(t, remoteRef, bs.remoteRef)
-	require.Equal(t, RemoteTrackingRef("origin", remoteRef), bs.remoteTrackingRef)
+	require.True(t, strings.HasPrefix(bs.remoteTrackingRef, "refs/dolt/remotes/origin/heads/alt/"))
 	require.NotEmpty(t, bs.localRef)
 	require.NotEqual(t, bs.remoteRef, bs.localRef)
 	require.NotEqual(t, bs.remoteTrackingRef, bs.localRef)
 	require.True(t, strings.HasPrefix(bs.localRef, "refs/dolt/blobstore/origin/heads/alt/"))
+}
+
+func TestGitBlobstore_TwoInstances_IndependentTrackingRefs(t *testing.T) {
+	requireGitOnPath(t)
+
+	ctx := context.Background()
+
+	remoteRepo, err := gitrepo.InitBare(ctx, t.TempDir()+"/remote.git")
+	require.NoError(t, err)
+	_, err = remoteRepo.SetRefToTree(ctx, DoltDataRef, map[string][]byte{
+		"manifest": []byte("v1\n"),
+	}, "seed")
+	require.NoError(t, err)
+
+	localRepo, err := gitrepo.InitBare(ctx, t.TempDir()+"/local.git")
+	require.NoError(t, err)
+	localRunner, err := git.NewRunner(localRepo.GitDir)
+	require.NoError(t, err)
+	_, err = localRunner.Run(ctx, git.RunOptions{}, "remote", "add", "origin", remoteRepo.GitDir)
+	require.NoError(t, err)
+
+	opts := GitBlobstoreOptions{RemoteName: "origin"}
+	bs1, err := NewGitBlobstoreWithOptions(localRepo.GitDir, DoltDataRef, opts)
+	require.NoError(t, err)
+	bs2, err := NewGitBlobstoreWithOptions(localRepo.GitDir, DoltDataRef, opts)
+	require.NoError(t, err)
+
+	// The two instances must have distinct tracking and local refs.
+	require.NotEqual(t, bs1.remoteTrackingRef, bs2.remoteTrackingRef)
+	require.NotEqual(t, bs1.localRef, bs2.localRef)
+
+	// Both instances can fetch independently without interfering.
+	ok1, err := bs1.Exists(ctx, "manifest")
+	require.NoError(t, err)
+	require.True(t, ok1)
+
+	ok2, err := bs2.Exists(ctx, "manifest")
+	require.NoError(t, err)
+	require.True(t, ok2)
+
+	// Verify each instance wrote to its own tracking ref.
+	localAPI := git.NewGitAPIImpl(localRunner)
+	head1, err := localAPI.ResolveRefCommit(ctx, bs1.remoteTrackingRef)
+	require.NoError(t, err)
+	head2, err := localAPI.ResolveRefCommit(ctx, bs2.remoteTrackingRef)
+	require.NoError(t, err)
+	require.Equal(t, head1, head2, "both should track the same remote commit")
+
+	// Verify local refs are also distinct and valid.
+	local1, err := localAPI.ResolveRefCommit(ctx, bs1.localRef)
+	require.NoError(t, err)
+	local2, err := localAPI.ResolveRefCommit(ctx, bs2.localRef)
+	require.NoError(t, err)
+	require.Equal(t, local1, local2, "both should point at the same commit")
 }
 
 func TestGitBlobstore_CleanupOwnedLocalRef_DeletesRef(t *testing.T) {
@@ -257,6 +311,10 @@ func TestGitBlobstore_RemoteManaged_PutPushesToRemote(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, ver)
 
+	// Non-manifest Put is deferred; flush via CheckAndPut("manifest").
+	_, err = bs.CheckAndPut(ctx, "", "manifest", 3, bytes.NewReader([]byte("xxx\n")))
+	require.NoError(t, err)
+
 	remoteRunner, err := git.NewRunner(remoteRepo.GitDir)
 	require.NoError(t, err)
 	remoteAPI := git.NewGitAPIImpl(remoteRunner)
@@ -289,6 +347,10 @@ func TestGitBlobstore_RemoteManaged_PutBootstrapsEmptyRemote(t *testing.T) {
 	ver, err := bs.Put(ctx, "k", int64(len(want)), bytes.NewReader(want))
 	require.NoError(t, err)
 	require.NotEmpty(t, ver)
+
+	// Non-manifest Put is deferred; flush via CheckAndPut("manifest").
+	_, err = bs.CheckAndPut(ctx, "", "manifest", 3, bytes.NewReader([]byte("xxx\n")))
+	require.NoError(t, err)
 
 	// Remote should now have refs/dolt/data and contain the key.
 	remoteRunner, err := git.NewRunner(remoteRepo.GitDir)
@@ -366,9 +428,13 @@ func TestGitBlobstore_RemoteManaged_PutRetriesOnLeaseFailure(t *testing.T) {
 		},
 	}
 
+	// Put is deferred (no push). The retry happens during CheckAndPut flush.
 	ver, err := PutBytes(ctx, bs, "k", []byte("after retry\n"))
 	require.NoError(t, err)
 	require.NotEmpty(t, ver)
+
+	_, err = bs.CheckAndPut(ctx, "", "manifest", 3, bytes.NewReader([]byte("xxx\n")))
+	require.NoError(t, err)
 
 	remoteHead, err := remoteAPI.ResolveRefCommit(ctx, DoltDataRef)
 	require.NoError(t, err)
@@ -553,6 +619,10 @@ func TestGitBlobstore_RemoteManaged_PutOverwritesDivergedLocalRef_NoMergeCommit(
 	require.NoError(t, err)
 
 	_, err = PutBytes(ctx, bs, "k", []byte("from local\n"))
+	require.NoError(t, err)
+
+	// Non-manifest Put is deferred; flush via CheckAndPut("manifest").
+	_, err = bs.CheckAndPut(ctx, "", "manifest", 3, bytes.NewReader([]byte("xxx\n")))
 	require.NoError(t, err)
 
 	remoteHeadAfter, err := remoteAPI.ResolveRefCommit(ctx, DoltDataRef)
@@ -759,23 +829,28 @@ func TestGitBlobstore_Concatenate_ChunkedResult(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, ver)
 
-	// Verify the resulting key is stored as a chunked tree (not a single blob).
-	head, ok, err := bs.api.TryResolveRefCommit(ctx, bs.localRef)
+	// Non-manifest writes are deferred; flush via CheckAndPut("manifest").
+	_, err = bs.CheckAndPut(ctx, "", "manifest", 3, bytes.NewReader([]byte("xxx\n")))
+	require.NoError(t, err)
+
+	// Verify the resulting key is stored as a chunked tree on the remote.
+	remoteRunner, err := git.NewRunner(remoteRepo.GitDir)
+	require.NoError(t, err)
+	remoteAPI := git.NewGitAPIImpl(remoteRunner)
+	head, ok, err := remoteAPI.TryResolveRefCommit(ctx, DoltDataRef)
 	require.NoError(t, err)
 	require.True(t, ok)
-	oid, typ, err := bs.api.ResolvePathObject(ctx, head, "c")
+	_, typ, err := remoteAPI.ResolvePathObject(ctx, head, "c")
 	require.NoError(t, err)
 	require.Equal(t, git.ObjectTypeTree, typ)
-	require.Equal(t, oid.String(), ver)
 
-	parts, err := bs.api.ListTree(ctx, head, "c")
+	parts, err := remoteAPI.ListTree(ctx, head, "c")
 	require.NoError(t, err)
 	require.GreaterOrEqual(t, len(parts), 2)
 	require.Equal(t, "0001", parts[0].Name)
 
-	got, ver2, err := GetBytes(ctx, bs, "c", AllRange)
+	got, _, err := GetBytes(ctx, bs, "c", AllRange)
 	require.NoError(t, err)
-	require.Equal(t, ver, ver2)
 	require.Equal(t, want, got)
 }
 
