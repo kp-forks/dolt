@@ -15,8 +15,6 @@
 package row
 
 import (
-	"context"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -101,153 +99,6 @@ func TestItrRowCols(t *testing.T) {
 	}, itrVals)
 }
 
-func TestFromNoms(t *testing.T) {
-	// New() will faithfully return null values in the row, but such columns won't ever be set when loaded from Noms.
-	// So we use a row here with no null values set to avoid this inconsistency.
-	expectedRow, err := New(types.Format_Default, sch, TaggedValues{
-		fnColTag:   fnVal,
-		lnColTag:   lnVal,
-		addrColTag: addrVal,
-		ageColTag:  ageVal,
-	})
-	require.NoError(t, err)
-
-	t.Run("all values specified", func(t *testing.T) {
-		keys, err := types.NewTuple(types.Format_Default,
-			types.Uint(fnColTag), fnVal,
-			types.Uint(lnColTag), lnVal,
-		)
-		require.NoError(t, err)
-
-		vals, err := types.NewTuple(types.Format_Default,
-			types.Uint(addrColTag), addrVal,
-			types.Uint(ageColTag), ageVal,
-			types.Uint(titleColTag), titleVal,
-		)
-
-		require.NoError(t, err)
-		r, err := FromNoms(sch, keys, vals)
-
-		require.NoError(t, err)
-		assert.Equal(t, expectedRow, r)
-	})
-
-	t.Run("only key", func(t *testing.T) {
-		keys, err := types.NewTuple(types.Format_Default,
-			types.Uint(fnColTag), fnVal,
-			types.Uint(lnColTag), lnVal,
-		)
-		require.NoError(t, err)
-
-		vals, err := types.NewTuple(types.Format_Default)
-		require.NoError(t, err)
-
-		expectedRow, err := New(types.Format_Default, sch, TaggedValues{
-			fnColTag: fnVal,
-			lnColTag: lnVal,
-		})
-		require.NoError(t, err)
-		r, err := FromNoms(sch, keys, vals)
-		require.NoError(t, err)
-		assert.Equal(t, expectedRow, r)
-	})
-
-	t.Run("additional tag not in schema is silently dropped", func(t *testing.T) {
-		keys, err := types.NewTuple(types.Format_Default,
-			types.Uint(fnColTag), fnVal,
-			types.Uint(lnColTag), lnVal,
-		)
-
-		require.NoError(t, err)
-
-		vals, err := types.NewTuple(types.Format_Default,
-			types.Uint(addrColTag), addrVal,
-			types.Uint(ageColTag), ageVal,
-			types.Uint(titleColTag), titleVal,
-			types.Uint(unusedTag), fnVal,
-		)
-
-		require.NoError(t, err)
-
-		r, err := FromNoms(sch, keys, vals)
-		require.NoError(t, err)
-		assert.Equal(t, expectedRow, r)
-	})
-
-	t.Run("bad type", func(t *testing.T) {
-		keys, err := types.NewTuple(types.Format_Default,
-			types.Uint(fnColTag), fnVal,
-			types.Uint(lnColTag), lnVal,
-		)
-		require.NoError(t, err)
-		vals, err := types.NewTuple(types.Format_Default,
-			types.Uint(addrColTag), addrVal,
-			types.Uint(ageColTag), fnVal,
-		)
-		require.NoError(t, err)
-
-		_, err = FromNoms(sch, keys, vals)
-		assert.Error(t, err)
-	})
-
-	t.Run("key col set in vals", func(t *testing.T) {
-		keys, err := types.NewTuple(types.Format_Default,
-			types.Uint(fnColTag), fnVal,
-			types.Uint(lnColTag), lnVal,
-		)
-		require.NoError(t, err)
-		vals, err := types.NewTuple(types.Format_Default,
-			types.Uint(addrColTag), addrVal,
-			types.Uint(fnColTag), fnVal,
-		)
-		require.NoError(t, err)
-
-		_, err = FromNoms(sch, keys, vals)
-		assert.Error(t, err)
-	})
-
-	t.Run("unknown tag in key", func(t *testing.T) {
-		keys, err := types.NewTuple(types.Format_Default,
-			types.Uint(fnColTag), fnVal,
-			types.Uint(lnColTag), lnVal,
-			types.Uint(unusedTag), fnVal,
-		)
-
-		require.NoError(t, err)
-
-		vals, err := types.NewTuple(types.Format_Default,
-			types.Uint(addrColTag), addrVal,
-			types.Uint(ageColTag), ageVal,
-			types.Uint(titleColTag), titleVal,
-		)
-
-		require.NoError(t, err)
-
-		_, err = FromNoms(sch, keys, vals)
-		assert.Error(t, err)
-	})
-
-	t.Run("value tag in key", func(t *testing.T) {
-		keys, err := types.NewTuple(types.Format_Default,
-			types.Uint(fnColTag), fnVal,
-			types.Uint(lnColTag), lnVal,
-			types.Uint(ageColTag), ageVal,
-		)
-
-		require.NoError(t, err)
-
-		vals, err := types.NewTuple(types.Format_Default,
-			types.Uint(addrColTag), addrVal,
-			types.Uint(titleColTag), titleVal,
-		)
-
-		require.NoError(t, err)
-
-		_, err = FromNoms(sch, keys, vals)
-		assert.Error(t, err)
-	})
-}
-
 func TestSetColVal(t *testing.T) {
 	t.Run("valid update", func(t *testing.T) {
 		expected := map[uint64]types.Value{
@@ -320,29 +171,6 @@ func TestSetColVal(t *testing.T) {
 	})
 }
 
-func TestConvToAndFromTuple(t *testing.T) {
-	ctx := context.Background()
-
-	r, err := newTestRow()
-	require.NoError(t, err)
-
-	keyTpl := r.NomsMapKey(sch).(TupleVals)
-	valTpl := r.NomsMapValue(sch).(TupleVals)
-	keyVal, err := keyTpl.Value(ctx)
-	require.NoError(t, err)
-	valVal, err := valTpl.Value(ctx)
-	require.NoError(t, err)
-	r2, err := FromNoms(sch, keyVal.(types.Tuple), valVal.(types.Tuple))
-	require.NoError(t, err)
-
-	fmt.Println(Fmt(context.Background(), r, sch))
-	fmt.Println(Fmt(context.Background(), r2, sch))
-
-	if !AreEqual(r, r2, sch) {
-		t.Error("Failed to convert to a noms tuple, and then convert back to the same row")
-	}
-}
-
 func TestReduceToIndex(t *testing.T) {
 	taggedValues := []struct {
 		row           TaggedValues
@@ -405,52 +233,6 @@ func TestReduceToIndex(t *testing.T) {
 		require.NoError(t, err)
 		assert.True(t, AreEqual(expectedIndex, indexRow, index.Schema()))
 	}
-}
-
-func TestFromNomsGeom(t *testing.T) {
-	// Declare values
-	pkColName := "pk"
-	geomColName := "g"
-	pkTag := uint64(0)
-	geomTag := uint64(1)
-	pkVal := types.Uint(0)
-	pointVal := types.Point{SRID: 0, X: 1, Y: 2}
-
-	// Create schema
-	testGeomKeyCols := []schema.Column{
-		{Name: pkColName, Tag: pkTag, Kind: types.UintKind, IsPartOfPK: true, TypeInfo: typeinfo.Uint64Type, Constraints: []schema.ColConstraint{schema.NotNullConstraint{}}},
-	}
-	testGeomCols := []schema.Column{
-		{Name: geomColName, Tag: geomTag, Kind: types.GeometryKind, IsPartOfPK: false, TypeInfo: typeinfo.GeometryType, Constraints: nil},
-	}
-	testGeomKeyColColl := schema.NewColCollection(testGeomKeyCols...)
-	testGeomNonKeyColColl := schema.NewColCollection(testGeomCols...)
-	schGeom, _ := schema.SchemaFromPKAndNonPKCols(testGeomKeyColColl, testGeomNonKeyColColl)
-
-	// New() will faithfully return null values in the row, but such columns won't ever be set when loaded from Noms.
-	// So we use a row here with no null values set to avoid this inconsistency.
-	expectedRow, err := New(types.Format_Default, schGeom, TaggedValues{
-		pkTag:   pkVal,
-		geomTag: pointVal,
-	})
-	require.NoError(t, err)
-
-	t.Run("all values specified geometry", func(t *testing.T) {
-		keys, err := types.NewTuple(types.Format_Default,
-			types.Uint(0), pkVal,
-		)
-		require.NoError(t, err)
-
-		vals, err := types.NewTuple(types.Format_Default,
-			types.Uint(1), pointVal,
-		)
-
-		require.NoError(t, err)
-		r, err := FromNoms(schGeom, keys, vals)
-
-		require.NoError(t, err)
-		assert.Equal(t, expectedRow, r)
-	})
 }
 
 func reduceToIndex(idx schema.Index, r Row) (Row, error) {

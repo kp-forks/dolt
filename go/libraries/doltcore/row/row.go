@@ -70,14 +70,6 @@ func New(nbf *types.NomsBinFormat, sch schema.Schema, colVals TaggedValues) (Row
 	return pkRowFromTaggedValues(nbf, sch, colVals)
 }
 
-func FromNoms(sch schema.Schema, nomsKey, nomsVal types.Tuple) (Row, error) {
-	if schema.IsKeyless(sch) {
-		row, _, err := KeylessRowsFromTuples(nomsKey, nomsVal)
-		return row, err
-	}
-	return pkRowFromNoms(sch, nomsKey, nomsVal)
-}
-
 func GetFieldByName(colName string, r Row, sch schema.Schema) (types.Value, bool) {
 	col, ok := sch.GetAllCols().GetByName(colName)
 
