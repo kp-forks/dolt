@@ -424,7 +424,7 @@ func (j *ChunkJournal) UpdateGCGen(ctx context.Context, behavior dherrors.FatalB
 	// then physically delete the journal here and cleanup |j.wr|
 	if !containsJournalSpec(latest.specs) {
 		if err = j.dropJournalWriter(ctx); err != nil {
-			return manifestContents{}, err
+			return manifestContents{}, dherrors.Fatalf(behavior, "%w: error dropping journal writer during UpdateGCGen", err)
 		}
 	}
 
