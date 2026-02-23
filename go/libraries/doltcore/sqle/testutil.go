@@ -45,7 +45,7 @@ import (
 
 // ExecuteSql executes all the SQL non-select statements given in the string against the root value given and returns
 // the updated root, or an error. Statements in the input string are split by `;\n`
-func ExecuteSql(ctx context.Context, dEnv *env.DoltEnv, root doltdb.RootValue, statements string) (doltdb.RootValue, error) {
+func ExecuteSql(ctx context.Context, dEnv *env.DoltEnv, statements string) (doltdb.RootValue, error) {
 	db, err := NewDatabase(context.Background(), "dolt", dEnv.DbData(ctx), editor.Options{})
 	if err != nil {
 		return nil, err
@@ -81,8 +81,6 @@ func ExecuteSqlOnEngine(ctx *sql.Context, engine *sqle.Engine, statements string
 
 		var execErr error
 		switch sqlStatement.(type) {
-		case *sqlparser.Show:
-			return errors.New("Show statements aren't handled")
 		case *sqlparser.Select, *sqlparser.OtherRead:
 			return errors.New("Select statements aren't handled")
 		case *sqlparser.Insert:
@@ -331,7 +329,7 @@ func CreateEnvWithSeedData() (*env.DoltEnv, error) {
 		return nil, err
 	}
 
-	root, err = ExecuteSql(ctx, dEnv, root, seedData)
+	root, err = ExecuteSql(ctx, dEnv, seedData)
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +473,7 @@ func CreateTestDatabase() (*env.DoltEnv, error) {
 		return nil, err
 	}
 
-	root, err = ExecuteSql(ctx, dEnv, root, simpsonsRowData)
+	root, err = ExecuteSql(ctx, dEnv, simpsonsRowData)
 	if err != nil {
 		return nil, err
 	}

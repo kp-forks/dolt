@@ -31,16 +31,14 @@ func TestViews(t *testing.T) {
 	dEnv := dtestutils.CreateTestEnv()
 	defer dEnv.DoltDB(ctx).Close()
 
-	root, _ := dEnv.WorkingRoot(ctx)
-
 	var err error
-	root, err = ExecuteSql(ctx, dEnv, root, "create table test (a int primary key)")
+	_, err = ExecuteSql(ctx, dEnv, "create table test (a int primary key)")
 	require.NoError(t, err)
 
-	root, err = ExecuteSql(ctx, dEnv, root, "insert into test values (1), (2), (3)")
+	_, err = ExecuteSql(ctx, dEnv, "insert into test values (1), (2), (3)")
 	require.NoError(t, err)
 
-	root, err = ExecuteSql(ctx, dEnv, root, "create view plus1 as select a + 1 from test")
+	_, err = ExecuteSql(ctx, dEnv, "create view plus1 as select a + 1 from test")
 	require.NoError(t, err)
 
 	expectedRows := []sql.Row{
@@ -48,10 +46,10 @@ func TestViews(t *testing.T) {
 		{int64(3)},
 		{int64(4)},
 	}
-	rows, _, err := executeSelect(t, context.Background(), dEnv, root, "select * from plus1")
+	rows, _, err := executeSelect(t, ctx, dEnv, "select * from plus1")
 	require.NoError(t, err)
 	assert.Equal(t, expectedRows, rows)
 
-	root, err = ExecuteSql(ctx, dEnv, root, "drop view plus1")
+	_, err = ExecuteSql(ctx, dEnv, "drop view plus1")
 	require.NoError(t, err)
 }

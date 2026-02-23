@@ -89,7 +89,7 @@ func TestRenameTable(t *testing.T) {
 			require.NoError(t, err)
 
 			// setup tests
-			root, err = ExecuteSql(ctx, dEnv, root, setup)
+			root, err = ExecuteSql(ctx, dEnv, setup)
 			require.NoError(t, err)
 
 			schemas, err := doltdb.GetAllSchemas(ctx, root)
