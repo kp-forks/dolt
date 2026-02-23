@@ -14,13 +14,15 @@
 
 package enginetest
 
-// This file contains tests converted from the legacy sqle package test format
-// (sqlselect_test.go, sqlinsert_test.go, sqlupdate_test.go, sqldelete_test.go,
-// sqlreplace_test.go) into the modern enginetest ScriptTest format.
-//
-// Some assertions from the legacy tests are not expressible in the ScriptTest
-// framework (e.g., schema assertions, tests marked SkipOnSqlEngine, system
-// table tests that depend on commit hashes). These have been omitted.
+// This file contains tests converted from a legacy test format that predated the enginetest format. They were
+// converted with the help of LLMs from these files, now deleted:
+// * sqlselect_test.go
+// * sqlinsert_test.go
+// * sqlupdate_test.go
+// * sqldelete_test.go
+// * sqlreplace_test.go
+// * sqlddl_test.go
+// These are believed to be mostly supplemental, with substantial overlap in coverage with other enginetests.
 
 import (
 	"time"
