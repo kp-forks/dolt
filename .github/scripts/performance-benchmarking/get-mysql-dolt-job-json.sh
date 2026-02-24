@@ -3,7 +3,7 @@
 set -e
 
 if [ "$#" -lt 12 ]; then
-    echo  "Usage: ./get-job-json.sh <jobname> <fromServer> <fromVersion> <toServer> <toVersion> <timeprefix> <actorprefix> <format> <issueNumber> <initBigRepo> <nomsBinFormat> [sysbenchTestTime] <withTpcc>"
+    echo  "Usage: ./get-job-json.sh <jobname> <fromServer> <fromVersion> <toServer> <toVersion> <timeprefix> <actorprefix> <format> <issueNumber> <initBigRepo> <nomsBinFormat> <sysbenchTestTime> <withTpcc>"
     exit 1
 fi
 
