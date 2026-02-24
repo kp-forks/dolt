@@ -23,9 +23,6 @@ import (
 )
 
 type Row interface {
-	// Iterates over all the columns in the row. Columns that have no value set will not be visited.
-	IterCols(cb func(tag uint64, val types.Value) (stop bool, err error)) (bool, error)
-
 	// Iterates over all columns in the schema, using the value for the row. Columns that have no value set in this row
 	// will still be visited, and receive a nil value.
 	IterSchema(sch schema.Schema, cb func(tag uint64, val types.Value) (stop bool, err error)) (bool, error)
@@ -33,9 +30,6 @@ type Row interface {
 	// Returns the value for the column with the tag given, and a success bool. The value will be null if the row
 	// doesn't contain a value for that tag.
 	GetColVal(tag uint64) (types.Value, bool)
-
-	// Format returns the types.NomsBinFormat for this row.
-	Format() *types.NomsBinFormat
 
 	// TODO(andy): NomsMapKey, NomsMapValue, & SetColVal
 	// don't make sense in the context of keyless tables.
@@ -46,21 +40,6 @@ type Row interface {
 
 	// NomsMapKey returns the noms map key for this row, using the schema provided.
 	NomsMapKey(sch schema.Schema) types.LesserValuable
-
-	// NomsMapValue returns the noms map value for this row, using the schema provided.
-	NomsMapValue(sch schema.Schema) types.Valuable
-
-	// NomsMapKeyTuple returns the noms map key tuple for this row, using the schema provided
-	NomsMapKeyTuple(sch schema.Schema, tf *types.TupleFactory) (types.Tuple, error)
-
-	// NomsMapValueTuple returns the noms map value tuple for this row, using the schema provided.
-	NomsMapValueTuple(sch schema.Schema, tf *types.TupleFactory) (types.Tuple, error)
-
-	// TaggedValues returns the row as TaggedValues.
-	TaggedValues() (TaggedValues, error)
-
-	// ReduceToIndexKeys returns full and partial index keys
-	ReduceToIndexKeys(idx schema.Index, tf *types.TupleFactory) (full types.Tuple, partial types.Tuple, value types.Tuple, err error)
 }
 
 func New(nbf *types.NomsBinFormat, sch schema.Schema, colVals TaggedValues) (Row, error) {

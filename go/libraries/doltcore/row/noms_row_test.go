@@ -79,26 +79,6 @@ func newTestRow() (Row, error) {
 	return New(types.Format_Default, sch, vals)
 }
 
-func TestItrRowCols(t *testing.T) {
-	r, err := newTestRow()
-	require.NoError(t, err)
-
-	itrVals := make(TaggedValues)
-	_, err = r.IterCols(func(tag uint64, val types.Value) (stop bool, err error) {
-		itrVals[tag] = val
-		return false, nil
-	})
-	require.NoError(t, err)
-
-	assert.Equal(t, TaggedValues{
-		lnColTag:    lnVal,
-		fnColTag:    fnVal,
-		ageColTag:   ageVal,
-		addrColTag:  addrVal,
-		titleColTag: titleVal,
-	}, itrVals)
-}
-
 func TestSetColVal(t *testing.T) {
 	t.Run("valid update", func(t *testing.T) {
 		expected := map[uint64]types.Value{
