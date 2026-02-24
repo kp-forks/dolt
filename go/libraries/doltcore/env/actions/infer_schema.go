@@ -261,7 +261,7 @@ func leastPermissiveChronoType(strVal string) typeinfo.TypeInfo {
 
 	dt, inRange, err := typeinfo.DatetimeType.ToSqlType().Convert(nil, strVal)
 	if err == nil && inRange == sql.InRange {
-		t := time.Time(dt.(types.Timestamp))
+		t := dt.(time.Time)
 		if t.Hour() == 0 && t.Minute() == 0 && t.Second() == 0 {
 			return typeinfo.DateType
 		}
