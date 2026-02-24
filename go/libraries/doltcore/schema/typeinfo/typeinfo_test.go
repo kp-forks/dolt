@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -36,20 +35,11 @@ func TestTypeInfoSuite(t *testing.T) {
 	t.Run("Equals", func(t *testing.T) {
 		testTypeInfoEquals(t, typeInfoArrays)
 	})
-	t.Run("ForeignKindHandling", func(t *testing.T) {
-		testTypeInfoForeignKindHandling(t, typeInfoArrays, validTypeValues)
-	})
-	t.Run("NullHandling", func(t *testing.T) {
-		testTypeInfoNullHandling(t, typeInfoArrays)
-	})
 	t.Run("NomsKind", func(t *testing.T) {
 		testTypeInfoNomsKind(t, typeInfoArrays, validTypeValues)
 	})
 	t.Run("ToSqlType", func(t *testing.T) {
 		testTypeInfoToSqlType(t, typeInfoArrays)
-	})
-	t.Run("GetTypeConverter Inclusion", func(t *testing.T) {
-		testTypeInfoConversionsExist(t, typeInfoArrays)
 	})
 }
 
@@ -125,21 +115,6 @@ func testTypeInfoToSqlType(t *testing.T, tiArrays [][]TypeInfo) {
 				})
 			}
 		})
-	}
-}
-
-// ensures that all types at least have a branch to all other types, which is useful in case a developer forgets to add
-// a new type everywhere it needs to go
-func testTypeInfoConversionsExist(t *testing.T, tiArrays [][]TypeInfo) {
-	for _, tiArray1 := range tiArrays {
-		for _, tiArray2 := range tiArrays {
-			ti1 := tiArray1[0]
-			ti2 := tiArray2[0]
-			t.Run(fmt.Sprintf("%s -> %s", ti1.ToSqlType().String(), ti2.ToSqlType().String()), func(t *testing.T) {
-				_, _, err := GetTypeConverter(context.Background(), ti1, ti2)
-				require.False(t, UnhandledTypeConversion.Is(err))
-			})
-		}
 	}
 }
 

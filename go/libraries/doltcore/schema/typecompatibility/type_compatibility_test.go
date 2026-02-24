@@ -432,3 +432,7 @@ func (e extendedType) DeserializeValue(ctx context.Context, val []byte) (any, er
 func (e extendedType) MaxSerializedWidth() sql.ExtendedTypeSerializedWidth {
 	panic("unimplemented")
 }
+
+func (e extendedType) FormatValue(val any) (string, error) {
+	panic("unimplemented")
+}
