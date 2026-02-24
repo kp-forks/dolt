@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -36,20 +35,11 @@ func TestTypeInfoSuite(t *testing.T) {
 	t.Run("Equals", func(t *testing.T) {
 		testTypeInfoEquals(t, typeInfoArrays)
 	})
-	t.Run("ForeignKindHandling", func(t *testing.T) {
-		testTypeInfoForeignKindHandling(t, typeInfoArrays, validTypeValues)
-	})
-	t.Run("NullHandling", func(t *testing.T) {
-		testTypeInfoNullHandling(t, typeInfoArrays)
-	})
 	t.Run("NomsKind", func(t *testing.T) {
 		testTypeInfoNomsKind(t, typeInfoArrays, validTypeValues)
 	})
 	t.Run("ToSqlType", func(t *testing.T) {
 		testTypeInfoToSqlType(t, typeInfoArrays)
-	})
-	t.Run("GetTypeConverter Inclusion", func(t *testing.T) {
-		testTypeInfoConversionsExist(t, typeInfoArrays)
 	})
 }
 
@@ -96,81 +86,6 @@ func testTypeInfoEquals(t *testing.T, tiArrays [][]TypeInfo) {
 	}
 }
 
-// ConvertNomsValueToValue and FormatValue should fail if the kind does not match the TypeInfo kind
-func testTypeInfoForeignKindHandling(t *testing.T, tiArrays [][]TypeInfo, vaArrays [][]types.Value) {
-	for _, tiArray := range tiArrays {
-		t.Run(tiArray[0].ToSqlType().String(), func(t *testing.T) {
-			for _, ti := range tiArray {
-				t.Run(ti.String(), func(t *testing.T) {
-					for _, vaArray := range vaArrays {
-						for _, val := range vaArray {
-							t.Run(fmt.Sprintf(`types.%v(%v)`, val.Kind().String(), humanReadableString(val)), func(t *testing.T) {
-								// Should be able to convert all Geometry columns
-								if ti.NomsKind() == types.GeometryKind {
-									if types.IsGeometryKind(val.Kind()) {
-										_, err := ti.ConvertNomsValueToValue(val)
-										assert.NoError(t, err)
-										_, err = ti.FormatValue(val)
-										assert.NoError(t, err)
-									} else {
-										_, err := ti.ConvertNomsValueToValue(val)
-										assert.Error(t, err)
-										_, err = ti.FormatValue(val)
-										assert.Error(t, err)
-									}
-								} else if ti.NomsKind() != val.Kind() {
-									_, err := ti.ConvertNomsValueToValue(val)
-									assert.Error(t, err)
-									_, err = ti.FormatValue(val)
-									assert.Error(t, err)
-								}
-							})
-						}
-					}
-				})
-			}
-		})
-	}
-}
-
-// makes sure that everything can handle nil and NullValue (if applicable)
-func testTypeInfoNullHandling(t *testing.T, tiArrays [][]TypeInfo) {
-	for _, tiArray := range tiArrays {
-		t.Run(tiArray[0].ToSqlType().String(), func(t *testing.T) {
-			for _, ti := range tiArray {
-				t.Run(ti.String(), func(t *testing.T) {
-					t.Run("ConvertNomsValueToValue", func(t *testing.T) {
-						val, err := ti.ConvertNomsValueToValue(types.NullValue)
-						require.NoError(t, err)
-						require.Nil(t, val)
-						val, err = ti.ConvertNomsValueToValue(nil)
-						require.NoError(t, err)
-						require.Nil(t, val)
-					})
-					t.Run("ConvertValueToNomsValue", func(t *testing.T) {
-						vrw := types.NewMemoryValueStore()
-						tVal, err := ti.ConvertValueToNomsValue(context.Background(), vrw, nil)
-						require.NoError(t, err)
-						require.Equal(t, types.NullValue, tVal)
-					})
-					t.Run("FormatValue", func(t *testing.T) {
-						tVal, err := ti.FormatValue(types.NullValue)
-						require.NoError(t, err)
-						require.Nil(t, tVal)
-						tVal, err = ti.FormatValue(nil)
-						require.NoError(t, err)
-						require.Nil(t, tVal)
-					})
-					t.Run("IsValid", func(t *testing.T) {
-						require.True(t, ti.IsValid(types.NullValue))
-						require.True(t, ti.IsValid(nil))
-					})
-				})
-			}
-		})
-	}
-}
-
 // smoke test checking that the returned NomsKind is consistent and matches the values.
 func testTypeInfoNomsKind(t *testing.T, tiArrays [][]TypeInfo, vaArrays [][]types.Value) {
 	for rowIndex, tiArray := range tiArrays {
@@ -200,21 +115,6 @@ func testTypeInfoToSqlType(t *testing.T, tiArrays [][]TypeInfo) {
 				})
 			}
 		})
-	}
-}
-
-// ensures that all types at least have a branch to all other types, which is useful in case a developer forgets to add
-// a new type everywhere it needs to go
-func testTypeInfoConversionsExist(t *testing.T, tiArrays [][]TypeInfo) {
-	for _, tiArray1 := range tiArrays {
-		for _, tiArray2 := range tiArrays {
-			ti1 := tiArray1[0]
-			ti2 := tiArray2[0]
-			t.Run(fmt.Sprintf("%s -> %s", ti1.ToSqlType().String(), ti2.ToSqlType().String()), func(t *testing.T) {
-				_, _, err := GetTypeConverter(context.Background(), ti1, ti2)
-				require.False(t, UnhandledTypeConversion.Is(err))
-			})
-		}
 	}
 }
 

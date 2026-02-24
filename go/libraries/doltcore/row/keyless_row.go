@@ -22,12 +22,8 @@ import (
 )
 
 const (
-	KeylessCardinalityTagIdx = uint64(0)
-	KeylessCardinalityValIdx = uint64(1)
-	KeylessFirstValIdx       = uint64(2)
+	KeylessFirstValIdx = uint64(2)
 )
-
-var ErrZeroCardinality = fmt.Errorf("read row with zero cardinality")
 
 // keylessRow is a Row without PRIMARY_KEY fields
 //
@@ -51,25 +47,6 @@ type keylessRow struct {
 }
 
 var _ Row = keylessRow{}
-
-func KeylessRow(nbf *types.NomsBinFormat, vals ...types.Value) (Row, error) {
-	return keylessRowWithCardinality(nbf, 1, vals...)
-}
-
-func KeylessRowsFromTuples(key, val types.Tuple) (Row, uint64, error) {
-	c, err := val.Get(1)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	card := uint64(c.(types.Uint))
-	r := keylessRow{
-		key: key,
-		val: val,
-	}
-
-	return r, card, err
-}
 
 func keylessRowFromTaggedValued(nbf *types.NomsBinFormat, sch schema.Schema, tv TaggedValues) (Row, error) {
 	vals := make([]types.Value, len(tv)*2)
@@ -118,22 +95,6 @@ func keylessRowWithCardinality(nbf *types.NomsBinFormat, card uint64, vals ...ty
 		key: kt,
 		val: vt,
 	}, nil
-}
-
-func (r keylessRow) NomsMapKey(sch schema.Schema) types.LesserValuable {
-	return r.key
-}
-
-func (r keylessRow) NomsMapValue(sch schema.Schema) types.Valuable {
-	return r.val
-}
-
-func (r keylessRow) NomsMapKeyTuple(sch schema.Schema, tf *types.TupleFactory) (types.Tuple, error) {
-	return r.key, nil
-}
-
-func (r keylessRow) NomsMapValueTuple(sch schema.Schema, tf *types.TupleFactory) (types.Tuple, error) {
-	return r.val, nil
 }
 
 func (r keylessRow) IterCols(cb func(tag uint64, val types.Value) (stop bool, err error)) (bool, error) {
@@ -225,124 +186,4 @@ func (r keylessRow) GetColVal(tag uint64) (val types.Value, ok bool) {
 		return
 	})
 	return val, ok
-}
-
-func (r keylessRow) SetColVal(updateTag uint64, updateVal types.Value, sch schema.Schema) (Row, error) {
-	iter, err := r.val.IteratorAt(KeylessCardinalityValIdx) // skip cardinality tag
-	if err != nil {
-		return nil, err
-	}
-	_, c, err := iter.Next()
-	if err != nil {
-		return nil, err
-	}
-	card := uint64(c.(types.Uint))
-
-	i := 0
-	vals := make([]types.Value, sch.GetAllCols().Size()*2)
-
-	_, err = r.IterSchema(sch, func(tag uint64, val types.Value) (stop bool, err error) {
-		if tag == updateTag {
-			val = updateVal
-		}
-
-		if val != nil {
-			vals[i] = types.Uint(tag)
-			vals[i+1] = val
-			i += 2
-		}
-
-		return
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return keylessRowWithCardinality(r.val.Format(), card, vals[:i]...)
-}
-
-// TaggedValues implements the Row interface.
-func (r keylessRow) TaggedValues() (TaggedValues, error) {
-	tv := make(TaggedValues)
-	_, err := r.IterCols(func(tag uint64, val types.Value) (stop bool, err error) {
-		tv[tag] = val
-		return false, nil
-	})
-	return tv, err
-}
-
-func (r keylessRow) Format() *types.NomsBinFormat {
-	return r.val.Format()
-}
-
-// ReduceToIndexKeys creates a full key, a partial key, and a cardinality value from the given row
-// (first tuple being the full key). Please refer to the note in the index editor for more information
-// regarding partial keys.
-func (r keylessRow) ReduceToIndexKeys(idx schema.Index, tf *types.TupleFactory) (types.Tuple, types.Tuple, types.Tuple, error) {
-	vals := make([]types.Value, 0, len(idx.AllTags())*2)
-	for _, tag := range idx.AllTags() {
-		val, ok := r.GetColVal(tag)
-		if !ok {
-			val = types.NullValue
-		}
-		vals = append(vals, types.Uint(tag), val)
-	}
-	hashTag, err := r.key.Get(0)
-	if err != nil {
-		return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-	}
-	hashVal, err := r.key.Get(1)
-	if err != nil {
-		return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-	}
-
-	cardTag, err := r.val.Get(0)
-	if err != nil {
-		return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-	}
-	cardVal, err := r.val.Get(1)
-	if err != nil {
-		return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-	}
-
-	var fullKey types.Tuple
-	var partialKey types.Tuple
-	var keyValue types.Tuple
-
-	if tf == nil {
-		keyValue, err = types.NewTuple(r.Format(), cardTag, cardVal)
-		if err != nil {
-			return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-		}
-
-		vals = append(vals, hashTag, hashVal)
-		fullKey, err = types.NewTuple(r.Format(), vals...)
-		if err != nil {
-			return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-		}
-
-		partialKey, err = types.NewTuple(r.Format(), vals[:idx.Count()*2]...)
-		if err != nil {
-			return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-		}
-	} else {
-		keyValue, err = tf.Create(cardTag, cardVal)
-		if err != nil {
-			return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-		}
-
-		vals = append(vals, hashTag, hashVal)
-		fullKey, err = tf.Create(vals...)
-		if err != nil {
-			return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-		}
-
-		partialKey, err = tf.Create(vals[:idx.Count()*2]...)
-		if err != nil {
-			return types.Tuple{}, types.Tuple{}, types.Tuple{}, err
-		}
-	}
-
-	return fullKey, partialKey, keyValue, nil
 }
