@@ -17,12 +17,14 @@ package sqle
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"reflect"
 	"sort"
 	"strings"
 	"testing"
 
+	"github.com/dolthub/dolt/go/libraries/doltcore/table/editor"
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -901,4 +903,38 @@ func convertSqlRowToInt64(sqlRows []sql.Row) []sql.Row {
 		newSqlRows[i] = newSqlRow
 	}
 	return newSqlRows
+}
+
+// Runs the query given and returns the error (if any).
+func executeModify(t *testing.T, ctx context.Context, dEnv *env.DoltEnv, query string) (doltdb.RootValue, error) {
+	db, err := NewDatabase(ctx, "dolt", dEnv.DbData(ctx), editor.Options{})
+	require.NoError(t, err)
+
+	engine, sqlCtx, err := NewTestEngine(dEnv, ctx, db)
+
+	if err != nil {
+		return nil, err
+	}
+
+	_, iter, _, err := engine.Query(sqlCtx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	for {
+		_, err := iter.Next(sqlCtx)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	err = iter.Close(sqlCtx)
+	if err != nil {
+		return nil, err
+	}
+
+	return db.GetRoot(sqlCtx)
 }
