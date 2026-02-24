@@ -15,31 +15,22 @@
 package row
 
 import (
-	"fmt"
-
 	"github.com/dolthub/dolt/go/libraries/doltcore/schema"
 	"github.com/dolthub/dolt/go/libraries/utils/valutil"
 	"github.com/dolthub/dolt/go/store/types"
 )
 
+// Row is the original row interface used by noms valued rows. It's still used in some test code and in a few legacy
+// command line reader interfaces, but should not be used for new code. Use |val.Tuple| to express rows.
+// Deprecated
 type Row interface {
-	// Iterates over all columns in the schema, using the value for the row. Columns that have no value set in this row
-	// will still be visited, and receive a nil value.
+	// IterSchema iterates over all columns in the schema, using the value for the row. Columns that have no value set
+	// in this row will still be visited, and receive a nil value.
 	IterSchema(sch schema.Schema, cb func(tag uint64, val types.Value) (stop bool, err error)) (bool, error)
 
-	// Returns the value for the column with the tag given, and a success bool. The value will be null if the row
-	// doesn't contain a value for that tag.
+	// GetColVal returns the value for the column with the tag given, and a success bool. The value will be null if the
+	// row doesn't contain a value for that tag.
 	GetColVal(tag uint64) (types.Value, bool)
-
-	// TODO(andy): NomsMapKey, NomsMapValue, & SetColVal
-	// don't make sense in the context of keyless tables.
-	// Make these methods package private.
-
-	// SetColVal sets a value for the column with the tag given, returning a new row with the update.
-	SetColVal(tag uint64, val types.Value, sch schema.Schema) (Row, error)
-
-	// NomsMapKey returns the noms map key for this row, using the schema provided.
-	NomsMapKey(sch schema.Schema) types.LesserValuable
 }
 
 func New(nbf *types.NomsBinFormat, sch schema.Schema, colVals TaggedValues) (Row, error) {
@@ -47,91 +38,6 @@ func New(nbf *types.NomsBinFormat, sch schema.Schema, colVals TaggedValues) (Row
 		return keylessRowFromTaggedValued(nbf, sch, colVals)
 	}
 	return pkRowFromTaggedValues(nbf, sch, colVals)
-}
-
-func GetFieldByName(colName string, r Row, sch schema.Schema) (types.Value, bool) {
-	col, ok := sch.GetAllCols().GetByName(colName)
-
-	if !ok {
-		panic("Requesting column that isn't in the schema. This is a bug. columns should be verified in the schema before attempted retrieval.")
-	} else {
-		return r.GetColVal(col.Tag)
-	}
-}
-
-func GetFieldByNameWithDefault(colName string, defVal types.Value, r Row, sch schema.Schema) types.Value {
-	col, ok := sch.GetAllCols().GetByName(colName)
-
-	if !ok {
-		panic("Requesting column that isn't in the schema. This is a bug. columns should be verified in the schema before attempted retrieval.")
-	} else {
-		val, ok := r.GetColVal(col.Tag)
-
-		if !ok {
-			return defVal
-		}
-
-		return val
-	}
-}
-
-// IsValid returns whether the row given matches the types and satisfies all the constraints of the schema given.
-func IsValid(r Row, sch schema.Schema) (bool, error) {
-	column, constraint, err := findInvalidCol(r, sch)
-
-	if err != nil {
-		return false, err
-	}
-
-	return column == nil && constraint == nil, nil
-}
-
-// GetInvalidCol returns the first column in the schema that fails a constraint, or nil if none do.
-func GetInvalidCol(r Row, sch schema.Schema) (*schema.Column, error) {
-	badCol, _, err := findInvalidCol(r, sch)
-	return badCol, err
-}
-
-// GetInvalidConstraint returns the failed constraint for the row given (previously identified by IsValid) along with
-// the column with that constraint. Note that if there is a problem with the row besides the constraint, the constraint
-// return value will be nil.
-func GetInvalidConstraint(r Row, sch schema.Schema) (*schema.Column, schema.ColConstraint, error) {
-	return findInvalidCol(r, sch)
-}
-
-// Returns the first encountered invalid column and its constraint, or nil if the row is valid. Column will always be
-// set if the row is invalid. Constraint will be set if the first encountered problem is a constraint failure.
-func findInvalidCol(r Row, sch schema.Schema) (*schema.Column, schema.ColConstraint, error) {
-	allCols := sch.GetAllCols()
-
-	var badCol *schema.Column
-	var badCnst schema.ColConstraint
-	err := allCols.Iter(func(tag uint64, col schema.Column) (stop bool, err error) {
-		val, colSet := r.GetColVal(tag)
-		if colSet && !types.IsNull(val) && val.Kind() != col.Kind {
-			badCol = &col
-			return true, nil
-		}
-
-		if !col.TypeInfo.IsValid(val) {
-			badCol = &col
-			return true, fmt.Errorf(`"%v" is not valid for column "%s" (type "%s")`, val, col.Name, col.TypeInfo.ToSqlType().String())
-		}
-
-		if len(col.Constraints) > 0 {
-			for _, cnst := range col.Constraints {
-				if !cnst.SatisfiesConstraint(val) {
-					badCol = &col
-					badCnst = cnst
-					return true, nil
-				}
-			}
-		}
-
-		return false, nil
-	})
-
-	return badCol, badCnst, err
 }
 
 func AreEqual(row1, row2 Row, sch schema.Schema) bool {

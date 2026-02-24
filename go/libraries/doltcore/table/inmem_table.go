@@ -17,14 +17,12 @@ package table
 import (
 	"context"
 	"io"
-	"sort"
 
 	"github.com/dolthub/go-mysql-server/sql"
 
 	"github.com/dolthub/dolt/go/libraries/doltcore/row"
 	"github.com/dolthub/dolt/go/libraries/doltcore/schema"
 	"github.com/dolthub/dolt/go/libraries/doltcore/sqle/sqlutil"
-	"github.com/dolthub/dolt/go/store/types"
 )
 
 // InMemTable holds a simple list of rows that can be retrieved, or appended to.  It is meant primarily for testing.
@@ -46,63 +44,6 @@ func NewInMemTableWithData(sch schema.Schema, rows []row.Row) *InMemTable {
 
 func NewInMemTableWithDataAndValidationType(sch schema.Schema, rows []row.Row) *InMemTable {
 	return &InMemTable{sch, rows}
-}
-
-// AppendRow appends a row.  Appended rows must be valid for the table's schema. Sorts rows as they are inserted.
-func (imt *InMemTable) AppendRow(ctx context.Context, vr types.ValueReader, r row.Row) error {
-	if isv, err := row.IsValid(r, imt.sch); err != nil {
-		return err
-	} else if !isv {
-		col, err := row.GetInvalidCol(r, imt.sch)
-
-		if err != nil {
-			return err
-		}
-
-		val, ok := r.GetColVal(col.Tag)
-
-		if !ok {
-			return NewBadRow(r, col.Name+" is missing")
-		} else {
-			encValStr, err := types.EncodedValue(context.Background(), val)
-
-			if err != nil {
-				return err
-			}
-
-			return NewBadRow(r, col.Name+":"+encValStr+" is not valid.")
-		}
-	}
-
-	imt.rows = append(imt.rows, r)
-
-	var err error
-	// If we are going to pipe these into noms, they need to be sorted.
-	sort.Slice(imt.rows, func(i, j int) bool {
-		if err != nil {
-			return false
-		}
-
-		iRow := imt.rows[i]
-		jRow := imt.rows[j]
-
-		isLess := false
-		isLess, err = iRow.NomsMapKey(imt.sch).Less(ctx, vr.Format(), jRow.NomsMapKey(imt.sch))
-
-		return isLess
-	})
-
-	return nil
-}
-
-// GetRow gets a row by index
-func (imt *InMemTable) GetRow(index int) (row.Row, error) {
-	return imt.rows[index], nil
-}
-
-// GetSchema gets the table's schema
-func (imt *InMemTable) GetSchema() schema.Schema {
-	return imt.sch
 }
 
 // NumRows returns the number of rows in the table

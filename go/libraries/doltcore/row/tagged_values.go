@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/dolthub/dolt/go/libraries/doltcore/schema"
 	"github.com/dolthub/dolt/go/store/types"
 )
 
@@ -62,14 +61,6 @@ func (tvs TupleVals) Less(ctx context.Context, nbf *types.NomsBinFormat, other t
 	return types.TupleKind < other.Kind(), nil
 }
 
-func (tt TaggedValues) NomsTupleForPKCols(nbf *types.NomsBinFormat, pkCols *schema.ColCollection) TupleVals {
-	return tt.nomsTupleForTags(nbf, pkCols.Tags, true)
-}
-
-func (tt TaggedValues) NomsTupleForNonPKCols(nbf *types.NomsBinFormat, nonPKCols *schema.ColCollection) TupleVals {
-	return tt.nomsTupleForTags(nbf, nonPKCols.SortedTags, false)
-}
-
 func (tt TaggedValues) nomsTupleForTags(nbf *types.NomsBinFormat, tags []uint64, encodeNulls bool) TupleVals {
 	vals := make([]types.Value, 0, 2*len(tags))
 	for _, tag := range tags {
@@ -106,71 +97,6 @@ func (tt TaggedValues) Iter(cb func(tag uint64, val types.Value) (stop bool, err
 func (tt TaggedValues) Get(tag uint64) (types.Value, bool) {
 	val, ok := tt[tag]
 	return val, ok
-}
-
-func (tt TaggedValues) GetWithDefault(tag uint64, def types.Value) types.Value {
-	val, ok := tt[tag]
-
-	if !ok {
-		return def
-	}
-
-	return val
-}
-
-func (tt TaggedValues) Set(tag uint64, val types.Value) TaggedValues {
-	updated := tt.copy()
-	// Setting a nil value removes the mapping for that tag entirely, rather than setting a nil value. The methods to
-	// write to noms treat a nil value the same as an absent value.
-	if val != nil {
-		updated[tag] = val
-	} else {
-		delete(updated, tag)
-	}
-
-	return updated
-}
-
-func (tt TaggedValues) copy() TaggedValues {
-	newTagToVal := make(TaggedValues, len(tt))
-	for tag, val := range tt {
-		newTagToVal[tag] = val
-	}
-
-	return newTagToVal
-}
-
-func ParseTaggedValues(tpl types.Tuple) (TaggedValues, error) {
-	vals, err := tpl.AsSlice()
-
-	if err != nil {
-		return nil, err
-	}
-
-	return TaggedValuesFromTupleValueSlice(vals)
-}
-
-func TaggedValuesFromTupleValueSlice(vals types.TupleValueSlice) (TaggedValues, error) {
-	valCount := len(vals)
-	if valCount%2 != 0 {
-		panic("A tagged tuple must have an even column count.")
-	}
-
-	taggedTuple := make(TaggedValues, valCount/2)
-	for i, j := 0, 0; j < valCount; i, j = i+1, j+2 {
-		tag := vals[j]
-		val := vals[j+1]
-
-		if tag.Kind() != types.UintKind {
-			panic("Invalid tagged tuple must have uint tags.")
-		}
-
-		if val != types.NullValue {
-			taggedTuple[uint64(tag.(types.Uint))] = val
-		}
-	}
-
-	return taggedTuple, nil
 }
 
 func (tt TaggedValues) String() string {
