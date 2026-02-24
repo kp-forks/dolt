@@ -34,65 +34,6 @@ var _ TypeInfo = (*geometryType)(nil)
 var GeometryType = &geometryType{gmstypes.GeometryType{}}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *geometryType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.PointKind:
-		val, err := reader.ReadPoint()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesPointToSQLPoint(val), nil
-	case types.LineStringKind:
-		val, err := reader.ReadLineString()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesLineStringToSQLLineString(val), nil
-	case types.PolygonKind:
-		val, err := reader.ReadPolygon()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesPolygonToSQLPolygon(val), nil
-	case types.MultiPointKind:
-		val, err := reader.ReadMultiPoint()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesMultiPointToSQLMultiPoint(val), nil
-	case types.MultiLineStringKind:
-		val, err := reader.ReadMultiLineString()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesMultiLineStringToSQLMultiLineString(val), nil
-	case types.MultiPolygonKind:
-		val, err := reader.ReadMultiPolygon()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesMultiPolygonToSQLMultiPolygon(val), nil
-	case types.GeometryCollectionKind:
-		val, err := reader.ReadGeomColl()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesGeomCollToSQLGeomColl(val), nil
-	case types.GeometryKind:
-		// Note: GeometryKind is no longer written
-		// included here for backward compatibility
-		val, err := reader.ReadGeometry()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesGeometryToSQLGeometry(val), nil
-	case types.NullKind:
-		return nil, nil
-	default:
-		return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-	}
-}
 
 // Equals implements TypeInfo interface.
 func (ti *geometryType) Equals(other TypeInfo) bool {

@@ -32,18 +32,6 @@ type inlineBlobType struct {
 var _ TypeInfo = (*inlineBlobType)(nil)
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *inlineBlobType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.InlineBlobKind:
-		bytes := reader.ReadInlineBlob()
-		return *(*string)(unsafe.Pointer(&bytes)), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *inlineBlobType) Equals(other TypeInfo) bool {

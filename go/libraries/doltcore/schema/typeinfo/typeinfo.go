@@ -26,9 +26,6 @@ import (
 
 // TypeInfo is an interface used for encoding type information.
 type TypeInfo interface {
-	// ReadFrom reads a go value from a noms types.CodecReader directly
-	ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error)
-
 	// Equals returns whether the given TypeInfo is equivalent to this TypeInfo.
 	Equals(other TypeInfo) bool
 

@@ -37,22 +37,6 @@ type varBinaryType struct {
 var _ TypeInfo = (*varBinaryType)(nil)
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *varBinaryType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.PeekKind()
-	switch k {
-	case types.BlobKind:
-		val, err := reader.ReadBlob()
-		if err != nil {
-			return nil, err
-		}
-		return fromBlob(val)
-	case types.NullKind:
-		_ = reader.ReadKind()
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *varBinaryType) Equals(other TypeInfo) bool {

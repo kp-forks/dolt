@@ -39,29 +39,6 @@ var (
 )
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *intType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.IntKind:
-		val := reader.ReadInt()
-		switch ti.sqlIntType {
-		case gmstypes.Int8:
-			return int8(val), nil
-		case gmstypes.Int16:
-			return int16(val), nil
-		case gmstypes.Int24:
-			return int32(val), nil
-		case gmstypes.Int32:
-			return int32(val), nil
-		case gmstypes.Int64:
-			return int64(val), nil
-		}
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *intType) Equals(other TypeInfo) bool {

@@ -29,9 +29,6 @@ var _ TypeInfo = (*unknownType)(nil)
 var UnknownType TypeInfo = &unknownType{}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *unknownType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	return nil, fmt.Errorf(`"Unknown" cannot read any Noms value to a go value`)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *unknownType) Equals(TypeInfo) bool {

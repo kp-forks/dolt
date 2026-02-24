@@ -34,21 +34,6 @@ var _ TypeInfo = (*polygonType)(nil)
 var PolygonType = &polygonType{gmstypes.PolygonType{}}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *polygonType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.PolygonKind:
-		p, err := reader.ReadPolygon()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesPolygonToSQLPolygon(p), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *polygonType) Equals(other TypeInfo) bool {

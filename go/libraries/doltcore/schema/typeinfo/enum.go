@@ -41,17 +41,6 @@ func CreateEnumTypeFromSqlEnumType(sqlEnumType sql.EnumType) TypeInfo {
 }
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *enumType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.UintKind:
-		return uint16(reader.ReadUint()), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *enumType) Equals(other TypeInfo) bool {

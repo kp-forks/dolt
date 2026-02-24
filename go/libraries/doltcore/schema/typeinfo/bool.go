@@ -32,23 +32,6 @@ var _ TypeInfo = (*boolType)(nil)
 var BoolType TypeInfo = &boolType{gmstypes.MustCreateBitType(1)}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *boolType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.BoolKind:
-		b := reader.ReadBool()
-		if b {
-			return uint64(1), nil
-		}
-
-		return uint64(0), nil
-
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *boolType) Equals(other TypeInfo) bool {

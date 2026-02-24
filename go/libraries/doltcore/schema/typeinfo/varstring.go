@@ -51,25 +51,6 @@ func CreateVarStringTypeFromSqlType(stringType sql.StringType) TypeInfo {
 }
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *varStringType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.StringKind:
-		val := reader.ReadString()
-		// As per the MySQL documentation, trailing spaces are removed when retrieved for CHAR types only.
-		// This function is used to retrieve dolt values, hence its inclusion here and not elsewhere.
-		// https://dev.mysql.com/doc/refman/8.0/en/char.html
-		if ti.sqlStringType.Type() == sqltypes.Char {
-			val = strings.TrimRightFunc(val, unicode.IsSpace)
-		}
-		return val, nil
-
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *varStringType) Equals(other TypeInfo) bool {

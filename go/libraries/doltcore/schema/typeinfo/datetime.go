@@ -49,26 +49,6 @@ func CreateDatetimeTypeFromSqlType(typ sql.DatetimeType) *datetimeType {
 }
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *datetimeType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.TimestampKind:
-		t, err := reader.ReadTimestamp()
-
-		if err != nil {
-			return nil, err
-		}
-
-		if ti.Equals(DateType) {
-			return t.Truncate(24 * time.Hour).UTC(), nil
-		}
-		return t.UTC(), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *datetimeType) Equals(other TypeInfo) bool {

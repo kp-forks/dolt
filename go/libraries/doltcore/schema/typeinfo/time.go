@@ -35,21 +35,6 @@ var _ TypeInfo = (*timeType)(nil)
 var TimeType = &timeType{gmstypes.Time}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *timeType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	// TODO: Add context parameter to ReadFrom, or delete the typeinfo package
-	ctx := context.Background()
-	k := reader.ReadKind()
-	switch k {
-	case types.IntKind:
-		val := reader.ReadInt()
-		ret, _, err := ti.sqlTimeType.Convert(ctx, gmstypes.Timespan(val))
-		return ret, err
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *timeType) Equals(other TypeInfo) bool {

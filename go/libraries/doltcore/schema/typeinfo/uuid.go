@@ -33,18 +33,6 @@ var _ TypeInfo = (*uuidType)(nil)
 var UuidType = &uuidType{gmstypes.MustCreateString(sqltypes.Char, 36, sql.Collation_ascii_bin)}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *uuidType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.UUIDKind:
-		val := reader.ReadUUID()
-		return val.String(), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *uuidType) Equals(other TypeInfo) bool {

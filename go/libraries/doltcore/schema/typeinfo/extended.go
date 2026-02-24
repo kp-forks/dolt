@@ -36,9 +36,6 @@ func CreateExtendedTypeFromSqlType(typ sql.ExtendedType) TypeInfo {
 }
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *extendedType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	return nil, fmt.Errorf(`"%v" is not valid in the old format`, ti.String())
-}
 
 // Equals implements the TypeInfo interface.
 func (ti *extendedType) Equals(other TypeInfo) bool {

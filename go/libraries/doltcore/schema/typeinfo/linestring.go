@@ -34,21 +34,6 @@ var _ TypeInfo = (*linestringType)(nil)
 var LineStringType = &linestringType{gmstypes.LineStringType{}}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *linestringType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.LineStringKind:
-		l, err := reader.ReadLineString()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesLineStringToSQLLineString(l), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *linestringType) Equals(other TypeInfo) bool {

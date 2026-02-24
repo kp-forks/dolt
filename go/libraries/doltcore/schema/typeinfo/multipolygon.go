@@ -34,21 +34,6 @@ var _ TypeInfo = (*multipolygonType)(nil)
 var MultiPolygonType = &multipolygonType{gmstypes.MultiPolygonType{}}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *multipolygonType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.MultiPolygonKind:
-		p, err := reader.ReadMultiPolygon()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesMultiPolygonToSQLMultiPolygon(p), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *multipolygonType) Equals(other TypeInfo) bool {

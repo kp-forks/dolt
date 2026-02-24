@@ -34,21 +34,6 @@ var _ TypeInfo = (*multilinestringType)(nil)
 var MultiLineStringType = &multilinestringType{gmstypes.MultiLineStringType{}}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *multilinestringType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.MultiLineStringKind:
-		p, err := reader.ReadMultiLineString()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesMultiLineStringToSQLMultiLineString(p), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *multilinestringType) Equals(other TypeInfo) bool {

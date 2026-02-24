@@ -34,21 +34,6 @@ var _ TypeInfo = (*pointType)(nil)
 var PointType = &pointType{gmstypes.PointType{}}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *pointType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.PointKind:
-		p, err := reader.ReadPoint()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesPointToSQLPoint(p), nil
-	case types.NullKind:
-		return nil, nil
-	default:
-		return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-	}
-}
 
 // Equals implements TypeInfo interface.
 func (ti *pointType) Equals(other TypeInfo) bool {

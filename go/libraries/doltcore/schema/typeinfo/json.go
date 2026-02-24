@@ -32,22 +32,6 @@ var _ TypeInfo = (*jsonType)(nil)
 var JSONType = &jsonType{sqltypes.JsonType{}}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *jsonType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.PeekKind()
-	switch k {
-	case types.JSONKind:
-		js, err := reader.ReadJSON()
-		if err != nil {
-			return nil, err
-		}
-		return json.NomsJSON(js), nil
-	case types.NullKind:
-		_ = reader.ReadKind()
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *jsonType) Equals(other TypeInfo) bool {

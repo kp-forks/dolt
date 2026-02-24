@@ -35,18 +35,6 @@ var _ TypeInfo = (*yearType)(nil)
 var YearType = &yearType{gmstypes.Year}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *yearType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.IntKind:
-		val := reader.ReadInt()
-		return int16(val), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *yearType) Equals(other TypeInfo) bool {

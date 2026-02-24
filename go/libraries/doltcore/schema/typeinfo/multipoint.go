@@ -34,21 +34,6 @@ var _ TypeInfo = (*multipointType)(nil)
 var MultiPointType = &multipointType{gmstypes.MultiPointType{}}
 
 // ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *multipointType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.MultiPointKind:
-		p, err := reader.ReadMultiPoint()
-		if err != nil {
-			return nil, err
-		}
-		return types.ConvertTypesMultiPointToSQLMultiPoint(p), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
 
 // Equals implements TypeInfo interface.
 func (ti *multipointType) Equals(other TypeInfo) bool {
