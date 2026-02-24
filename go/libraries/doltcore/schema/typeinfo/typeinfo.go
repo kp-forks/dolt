@@ -42,7 +42,7 @@ type TypeInfo interface {
 
 	// Equals returns whether the given TypeInfo is equivalent to this TypeInfo.
 	Equals(other TypeInfo) bool
-	
+
 	// IsValid takes in a types.Value and returns whether it is valid for this type.
 	IsValid(v types.Value) bool
 

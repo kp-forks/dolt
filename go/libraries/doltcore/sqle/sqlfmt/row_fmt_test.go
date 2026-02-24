@@ -17,10 +17,11 @@ package sqlfmt_test
 import (
 	"testing"
 
-	_ "github.com/dolthub/dolt/go/libraries/doltcore/sqle"
-	"github.com/dolthub/dolt/go/libraries/doltcore/sqle/sqlfmt"
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/stretchr/testify/assert"
+
+	_ "github.com/dolthub/dolt/go/libraries/doltcore/sqle"
+	"github.com/dolthub/dolt/go/libraries/doltcore/sqle/sqlfmt"
 )
 
 const expectedDropSql = "DROP TABLE `table_name`;"
