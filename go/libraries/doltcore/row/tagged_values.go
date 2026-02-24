@@ -21,6 +21,9 @@ import (
 	"github.com/dolthub/dolt/go/store/types"
 )
 
+// TaggedValues is a map of tag to value, used in the original implementation of row storage with noms types.
+// Use |val.Tuple| instead.
+// Deprecated
 type TaggedValues map[uint64]types.Value
 
 type TupleVals struct {
