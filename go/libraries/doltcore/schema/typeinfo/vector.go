@@ -15,9 +15,7 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
-	"strings"
 
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
@@ -42,17 +40,6 @@ type vectorType struct {
 
 var _ TypeInfo = (*vectorType)(nil)
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *vectorType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Blob); ok {
-		return fromBlob(val)
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti, v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *vectorType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.PeekKind()
@@ -69,22 +56,6 @@ func (ti *vectorType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader)
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *vectorType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	strVal, _, err := ti.sqlVectorType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	val, ok := strVal.([]byte)
-	if ok {
-		return types.NewBlob(ctx, vrw, strings.NewReader(string(val)))
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert value "%v" of type "%T" as it is invalid`, ti.String(), v, v)
 }
 
 // Equals implements TypeInfo interface.

@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -34,20 +33,6 @@ var _ TypeInfo = (*geomcollType)(nil)
 
 var GeomCollType = &geomcollType{gmstypes.GeomCollType{}}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *geomcollType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	// Check for null
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	// Expect a types.GeomColl, return a sql.GeomColl
-	if val, ok := v.(types.GeomColl); ok {
-		return types.ConvertTypesGeomCollToSQLGeomColl(val), nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *geomcollType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -57,28 +42,12 @@ func (ti *geomcollType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecRea
 		if err != nil {
 			return nil, err
 		}
-		return ti.ConvertNomsValueToValue(p)
+		return types.ConvertTypesGeomCollToSQLGeomColl(p), nil
 	case types.NullKind:
 		return nil, nil
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *geomcollType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// Check for null
-	if v == nil {
-		return types.NullValue, nil
-	}
-
-	// Convert to sql.GeomColl
-	geomColl, _, err := ti.sqlGeomCollType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.ConvertSQLGeomCollToTypesGeomColl(geomColl.(gmstypes.GeomColl)), nil
 }
 
 // Equals implements TypeInfo interface.

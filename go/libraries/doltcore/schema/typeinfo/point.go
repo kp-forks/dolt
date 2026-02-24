@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -34,20 +33,6 @@ var _ TypeInfo = (*pointType)(nil)
 
 var PointType = &pointType{gmstypes.PointType{}}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *pointType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	// Check for null
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	// Expect a types.Point, return a sql.Point
-	if val, ok := v.(types.Point); ok {
-		return types.ConvertTypesPointToSQLPoint(val), nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *pointType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -57,28 +42,12 @@ func (ti *pointType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader
 		if err != nil {
 			return nil, err
 		}
-		return ti.ConvertNomsValueToValue(p)
+		return types.ConvertTypesPointToSQLPoint(p), nil
 	case types.NullKind:
 		return nil, nil
 	default:
 		return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
 	}
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *pointType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// Check for null
-	if v == nil {
-		return types.NullValue, nil
-	}
-
-	// Convert to sql.PointType
-	point, _, err := ti.sqlPointType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.ConvertSQLPointToTypesPoint(point.(gmstypes.Point)), nil
 }
 
 // Equals implements TypeInfo interface.

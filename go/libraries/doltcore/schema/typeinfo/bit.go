@@ -55,17 +55,6 @@ func CreateBitTypeFromParams(params map[string]string) (TypeInfo, error) {
 	}
 }
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *bitType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Uint); ok {
-		return uint64(val), nil
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *bitType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -78,22 +67,6 @@ func (ti *bitType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (i
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *bitType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	uintVal, _, err := ti.sqlBitType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	val, ok := uintVal.(uint64)
-	if ok {
-		return types.Uint(val), nil
-	}
-	return nil, fmt.Errorf(`"%v" has unexpectedly encountered a value of type "%T" from embedded type`, ti.String(), v)
 }
 
 // Equals implements TypeInfo interface.

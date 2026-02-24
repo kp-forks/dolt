@@ -38,28 +38,6 @@ var (
 	Uint64Type = &uintType{gmstypes.Uint64}
 )
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *uintType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Uint); ok {
-		switch ti.sqlUintType {
-		case gmstypes.Uint8:
-			return uint8(val), nil
-		case gmstypes.Uint16:
-			return uint16(val), nil
-		case gmstypes.Uint24:
-			return uint32(val), nil
-		case gmstypes.Uint32:
-			return uint32(val), nil
-		case gmstypes.Uint64:
-			return uint64(val), nil
-		}
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *uintType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -83,29 +61,6 @@ func (ti *uintType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *uintType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	uintVal, _, err := ti.sqlUintType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	switch val := uintVal.(type) {
-	case uint8:
-		return types.Uint(val), nil
-	case uint16:
-		return types.Uint(val), nil
-	case uint32:
-		return types.Uint(val), nil
-	case uint64:
-		return types.Uint(val), nil
-	default:
-		return nil, fmt.Errorf(`"%v" has unexpectedly encountered a value of type "%T" from embedded type`, ti.String(), v)
-	}
 }
 
 // Equals implements TypeInfo interface.

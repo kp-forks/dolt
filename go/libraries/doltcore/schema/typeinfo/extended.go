@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -36,18 +35,8 @@ func CreateExtendedTypeFromSqlType(typ sql.ExtendedType) TypeInfo {
 	return &extendedType{typ}
 }
 
-// ConvertNomsValueToValue implements the TypeInfo interface.
-func (ti *extendedType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	return nil, fmt.Errorf(`"%v" is not valid in the old format`, ti.String())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *extendedType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	return nil, fmt.Errorf(`"%v" is not valid in the old format`, ti.String())
-}
-
-// ConvertValueToNomsValue implements the TypeInfo interface.
-func (ti *extendedType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
 	return nil, fmt.Errorf(`"%v" is not valid in the old format`, ti.String())
 }
 

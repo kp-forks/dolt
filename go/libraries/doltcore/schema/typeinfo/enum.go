@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -41,17 +40,6 @@ func CreateEnumTypeFromSqlEnumType(sqlEnumType sql.EnumType) TypeInfo {
 	return &enumType{sqlEnumType}
 }
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *enumType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Uint); ok {
-		return uint16(val), nil
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *enumType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -63,18 +51,6 @@ func (ti *enumType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *enumType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	val, _, err := ti.sqlEnumType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	return types.Uint(val.(uint16)), nil
 }
 
 // Equals implements TypeInfo interface.

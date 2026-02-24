@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -34,20 +33,6 @@ var _ TypeInfo = (*linestringType)(nil)
 
 var LineStringType = &linestringType{gmstypes.LineStringType{}}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *linestringType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	// Check for null
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	// Expect a types.LineString, return a sql.LineString
-	if val, ok := v.(types.LineString); ok {
-		return types.ConvertTypesLineStringToSQLLineString(val), nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *linestringType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -57,28 +42,12 @@ func (ti *linestringType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecR
 		if err != nil {
 			return nil, err
 		}
-		return ti.ConvertNomsValueToValue(l)
+		return types.ConvertTypesLineStringToSQLLineString(l), nil
 	case types.NullKind:
 		return nil, nil
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *linestringType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// Check for null
-	if v == nil {
-		return types.NullValue, nil
-	}
-
-	// Convert to sql.LineStringType
-	line, _, err := ti.sqlLineStringType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.ConvertSQLLineStringToTypesLineString(line.(gmstypes.LineString)), nil
 }
 
 // Equals implements TypeInfo interface.

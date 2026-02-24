@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -29,19 +28,9 @@ var _ TypeInfo = (*unknownType)(nil)
 
 var UnknownType TypeInfo = &unknownType{}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *unknownType) ConvertNomsValueToValue(types.Value) (interface{}, error) {
-	return nil, fmt.Errorf(`"Unknown" cannot convert any Noms value to a go value`)
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *unknownType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	return nil, fmt.Errorf(`"Unknown" cannot read any Noms value to a go value`)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *unknownType) ConvertValueToNomsValue(context.Context, types.ValueReadWriter, interface{}) (types.Value, error) {
-	return nil, fmt.Errorf(`"Unknown" cannot convert any go value to a Noms value`)
 }
 
 // Equals implements TypeInfo interface.

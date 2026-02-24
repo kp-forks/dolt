@@ -48,20 +48,6 @@ func CreateDatetimeTypeFromSqlType(typ sql.DatetimeType) *datetimeType {
 	return &datetimeType{typ}
 }
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *datetimeType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Timestamp); ok {
-		if ti.Equals(DateType) {
-			return time.Time(val).Truncate(24 * time.Hour).UTC(), nil
-		}
-		return time.Time(val).UTC(), nil
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *datetimeType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -82,23 +68,6 @@ func (ti *datetimeType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReade
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *datetimeType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// TODO: handle the zero value as a special case that is valid for all ranges
-	if v == nil {
-		return types.NullValue, nil
-	}
-	timeVal, _, err := ti.sqlDatetimeType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	val, ok := timeVal.(time.Time)
-	if ok {
-		return types.Timestamp(val), nil
-	}
-	return nil, fmt.Errorf(`"%v" has unexpectedly encountered a value of type "%T" from embedded type`, ti.String(), v)
 }
 
 // Equals implements TypeInfo interface.

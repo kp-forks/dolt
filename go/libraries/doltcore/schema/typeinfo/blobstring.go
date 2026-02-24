@@ -15,10 +15,7 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
-	"strings"
-	"unicode/utf8"
 
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
@@ -46,21 +43,6 @@ var (
 	LongTextType TypeInfo = &blobStringType{sqlStringType: gmstypes.LongText}
 )
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *blobStringType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Blob); ok {
-		b, err := fromBlob(val)
-		if gmstypes.IsBinaryType(ti.sqlStringType) {
-			return b, err
-		}
-		return string(b), err
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *blobStringType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.PeekKind()
@@ -81,25 +63,6 @@ func (ti *blobStringType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecRea
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *blobStringType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	strVal, _, err := ti.sqlStringType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	val, ok, err := sql.Unwrap[string](ctx, strVal)
-	if err != nil {
-		return nil, err
-	}
-	if ok && utf8.ValidString(val) { // We need to move utf8 (collation) validation into the server
-		return types.NewBlob(ctx, vrw, strings.NewReader(val))
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert value "%v" of type "%T" as it is invalid`, ti.String(), v, v)
 }
 
 // Equals implements TypeInfo interface.

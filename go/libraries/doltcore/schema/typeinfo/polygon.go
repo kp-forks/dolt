@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -34,20 +33,6 @@ var _ TypeInfo = (*polygonType)(nil)
 
 var PolygonType = &polygonType{gmstypes.PolygonType{}}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *polygonType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	// Check for null
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	// Expect a types.Polygon, return a sql.Polygon
-	if val, ok := v.(types.Polygon); ok {
-		return types.ConvertTypesPolygonToSQLPolygon(val), nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *polygonType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -57,28 +42,12 @@ func (ti *polygonType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecRead
 		if err != nil {
 			return nil, err
 		}
-		return ti.ConvertNomsValueToValue(p)
+		return types.ConvertTypesPolygonToSQLPolygon(p), nil
 	case types.NullKind:
 		return nil, nil
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *polygonType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// Check for null
-	if v == nil {
-		return types.NullValue, nil
-	}
-
-	// Convert to sql.PolygonType
-	poly, _, err := ti.sqlPolygonType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.ConvertSQLPolygonToTypesPolygon(poly.(gmstypes.Polygon)), nil
 }
 
 // Equals implements TypeInfo interface.

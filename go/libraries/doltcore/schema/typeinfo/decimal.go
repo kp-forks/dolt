@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 
@@ -67,17 +66,6 @@ func CreateDecimalTypeFromParams(params map[string]string) (TypeInfo, error) {
 	return &decimalType{sqlDecimalType}, nil
 }
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *decimalType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Decimal); ok {
-		return decimal.Decimal(val).StringFixed(int32(ti.sqlDecimalType.Scale())), nil
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *decimalType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -95,26 +83,6 @@ func (ti *decimalType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *decimalType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	decVal, err := ti.sqlDecimalType.ConvertToNullDecimal(v)
-	if err != nil {
-		return nil, err
-	}
-	if !decVal.Valid {
-		return nil, fmt.Errorf(`"%v" has unexpectedly encountered a null value from embedded type`, ti.String())
-	}
-	dec, _, err := ti.sqlDecimalType.BoundsCheck(decVal.Decimal)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.Decimal(dec), nil
 }
 
 // Equals implements TypeInfo interface.

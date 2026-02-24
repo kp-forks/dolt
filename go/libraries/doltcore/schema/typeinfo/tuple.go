@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -30,14 +29,6 @@ var _ TypeInfo = (*tupleType)(nil)
 // This is for internal use only. Used in merge conflicts.
 var TupleType = &tupleType{}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *tupleType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if _, ok := v.(types.Null); ok {
-		return nil, nil
-	}
-	return v, nil
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *tupleType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	k := reader.ReadKind()
@@ -47,17 +38,6 @@ func (ti *tupleType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) 
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *tupleType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if tVal, ok := v.(types.Value); ok {
-		return tVal, nil
-	}
-	if v == nil {
-		return types.NullValue, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert value "%v" of type "%T" as it is invalid`, ti.String(), v, v)
 }
 
 // Equals implements TypeInfo interface.

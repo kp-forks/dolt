@@ -34,20 +34,6 @@ var _ TypeInfo = (*timeType)(nil)
 
 var TimeType = &timeType{gmstypes.Time}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *timeType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	// TODO: Add context parameter to ConvertNomsValueToValue, or delete the typeinfo package
-	ctx := context.Background()
-	if val, ok := v.(types.Int); ok {
-		ret, _, err := ti.sqlTimeType.Convert(ctx, gmstypes.Timespan(val))
-		return ret, err
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
 // ReadFrom reads a go value from a noms types.CodecReader directly
 func (ti *timeType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
 	// TODO: Add context parameter to ReadFrom, or delete the typeinfo package
@@ -63,18 +49,6 @@ func (ti *timeType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (
 	}
 
 	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *timeType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	val, _, err := ti.sqlTimeType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	return types.Int(val.(gmstypes.Timespan)), nil
 }
 
 // Equals implements TypeInfo interface.
