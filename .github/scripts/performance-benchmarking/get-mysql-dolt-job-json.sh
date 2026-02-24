@@ -18,14 +18,8 @@ format="$8"
 issueNumber="$9"
 initBigRepo="${10}"
 nomsBinFormat="${11}"
-sysbenchTestTime=""
-withTpcc=""
-if [ "$#" -ge 13 ]; then
-  sysbenchTestTime="${12}"
-  withTpcc="${13}"
-else
-  withTpcc="${12}"
-fi
+sysbenchTestTime="${12}"
+withTpcc="${13}"
 precision="2"
 tpccRegex="tpcc%"
 toProfileKey=""
