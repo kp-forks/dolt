@@ -115,7 +115,7 @@ var (
 	)
 )
 
-type kvPair struct {
+type testTuple struct {
 	key int64
 	v0  string
 	v1  string
@@ -136,9 +136,9 @@ func buildValTuple(ns tree.NodeStore, v0, v1 string) val.Tuple {
 	return tup
 }
 
-func createProllyMap(t *testing.T, ctx context.Context, ns tree.NodeStore, pairs []kvPair) prolly.Map {
-	tuples := make([]val.Tuple, 0, len(pairs)*2)
-	for _, p := range pairs {
+func createProllyMap(t *testing.T, ctx context.Context, ns tree.NodeStore, data []testTuple) prolly.Map {
+	tuples := make([]val.Tuple, 0, len(data)*2)
+	for _, p := range data {
 		tuples = append(tuples, buildKeyTuple(ns, p.key), buildValTuple(ns, p.v0, p.v1))
 	}
 	m, err := prolly.NewMapFromTuples(ctx, ns, testKeyDesc, testValDesc, tuples...)
@@ -146,7 +146,7 @@ func createProllyMap(t *testing.T, ctx context.Context, ns tree.NodeStore, pairs
 	return m
 }
 
-func putProllyMapValues(t *testing.T, ctx context.Context, ns tree.NodeStore, m prolly.Map, pairs []kvPair) prolly.Map {
+func putProllyMapValues(t *testing.T, ctx context.Context, ns tree.NodeStore, m prolly.Map, pairs []testTuple) prolly.Map {
 	mut := m.Mutate()
 	for _, p := range pairs {
 		err := mut.Put(ctx, buildKeyTuple(ns, p.key), buildValTuple(ns, p.v0, p.v1))
@@ -239,7 +239,7 @@ func testPuller(t *testing.T, makeDB datasFactory) {
 
 	type delta struct {
 		name       string
-		sets       map[string][]kvPair
+		sets       map[string][]testTuple
 		deletes    map[string][]int64
 		tblDeletes []string
 	}
@@ -247,13 +247,13 @@ func testPuller(t *testing.T, makeDB datasFactory) {
 	deltas := []delta{
 		{
 			name:       "empty",
-			sets:       map[string][]kvPair{},
+			sets:       map[string][]testTuple{},
 			deletes:    map[string][]int64{},
 			tblDeletes: []string{},
 		},
 		{
 			name: "employees",
-			sets: map[string][]kvPair{
+			sets: map[string][]testTuple{
 				"employees": {
 					{0, "Hendriks", "Software Engineer"},
 					{1, "Sehn", "CEO"},
@@ -265,7 +265,7 @@ func testPuller(t *testing.T, makeDB datasFactory) {
 		},
 		{
 			name: "ip to country",
-			sets: map[string][]kvPair{
+			sets: map[string][]testTuple{
 				"ip_to_country": {
 					{0, "5.183.230.1", "BZ"},
 					{1, "5.180.188.1", "AU"},
@@ -278,7 +278,7 @@ func testPuller(t *testing.T, makeDB datasFactory) {
 		},
 		{
 			name: "more ips",
-			sets: map[string][]kvPair{
+			sets: map[string][]testTuple{
 				"ip_to_country": {
 					{4, "20.175.193.85", "US"},
 					{5, "5.196.110.191", "FR"},
@@ -290,7 +290,7 @@ func testPuller(t *testing.T, makeDB datasFactory) {
 		},
 		{
 			name: "more employees",
-			sets: map[string][]kvPair{
+			sets: map[string][]testTuple{
 				"employees": {
 					{3, "Jesuele", "Software Engineer"},
 					{4, "Wilkins", "Software Engineer"},
@@ -302,13 +302,13 @@ func testPuller(t *testing.T, makeDB datasFactory) {
 		},
 		{
 			name:       "delete ips table",
-			sets:       map[string][]kvPair{},
+			sets:       map[string][]testTuple{},
 			deletes:    map[string][]int64{},
 			tblDeletes: []string{"ip_to_country"},
 		},
 		{
 			name: "delete some employees",
-			sets: map[string][]kvPair{},
+			sets: map[string][]testTuple{},
 			deletes: map[string][]int64{
 				"employees": {0, 1, 2},
 			},
@@ -326,14 +326,14 @@ func testPuller(t *testing.T, makeDB datasFactory) {
 	var parent []hash.Hash
 	states := map[string]hash.Hash{}
 	for _, d := range deltas {
-		for tbl, pairs := range d.sets {
+		for tbl, data := range d.sets {
 			existing, ok := tables[tbl]
 			if !ok {
-				m := createProllyMap(t, ctx, ns, pairs)
+				m := createProllyMap(t, ctx, ns, data)
 				tables[tbl] = m
 				am = addToAddressMap(t, ctx, ns, am, tbl, m)
 			} else {
-				m := putProllyMapValues(t, ctx, ns, existing, pairs)
+				m := putProllyMapValues(t, ctx, ns, existing, data)
 				tables[tbl] = m
 				am = updateAddressMap(t, ctx, ns, am, tbl, m)
 			}
