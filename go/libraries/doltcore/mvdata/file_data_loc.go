@@ -112,35 +112,21 @@ func (dl FileDataLocation) NewReader(ctx context.Context, dEnv *env.DoltEnv, opt
 		return rd, false, err
 
 	case JsonFile:
-		var sch schema.Schema
-		jsonOpts, _ := opts.(JSONOptions)
-		if jsonOpts.SchFile != "" {
-			tn, s, err := SchAndTableNameFromFile(jsonOpts.SqlCtx, jsonOpts.SchFile, dEnv.FS, root, jsonOpts.Engine)
-			if err != nil {
-				return nil, false, err
-			}
-			if tn != jsonOpts.TableName {
-				return nil, false, fmt.Errorf("table name '%s' from schema file %s does not match table arg '%s'", tn, jsonOpts.SchFile, jsonOpts.TableName)
-			}
-			sch = s
-		} else {
-			if opts == nil {
-				return nil, false, errors.New("Unable to determine table name on JSON import")
-			}
-			tbl, exists, err := root.GetTable(context.TODO(), doltdb.TableName{Name: jsonOpts.TableName})
-			if !exists {
-				return nil, false, fmt.Errorf("The following table could not be found:\n%v", jsonOpts.TableName)
-			}
-			if err != nil {
-				return nil, false, fmt.Errorf("An error occurred attempting to read the table:\n%v", err.Error())
-			}
-			sch, err = tbl.GetSchema(context.TODO())
-			if err != nil {
-				return nil, false, fmt.Errorf("An error occurred attempting to read the table schema:\n%v", err.Error())
-			}
+		sch, err := resolveJSONSchema(dEnv, root, opts)
+		if err != nil {
+			return nil, false, err
 		}
 
 		rd, err := json.OpenJSONReader(root.VRW(), dl.Path, fs, sch)
+		return rd, false, err
+
+	case JsonlFile:
+		sch, err := resolveJSONSchema(dEnv, root, opts)
+		if err != nil {
+			return nil, false, err
+		}
+
+		rd, err := json.OpenJSONLReader(root.VRW(), dl.Path, fs, sch)
 		return rd, false, err
 
 	case ParquetFile:
@@ -176,6 +162,40 @@ func (dl FileDataLocation) NewReader(ctx context.Context, dEnv *env.DoltEnv, opt
 	}
 
 	return nil, false, errors.New("unsupported format")
+}
+
+func resolveJSONSchema(dEnv *env.DoltEnv, root doltdb.RootValue, opts interface{}) (schema.Schema, error) {
+	var sch schema.Schema
+	jsonOpts, _ := opts.(JSONOptions)
+
+	if jsonOpts.SchFile != "" {
+		tn, s, err := SchAndTableNameFromFile(jsonOpts.SqlCtx, jsonOpts.SchFile, dEnv.FS, root, jsonOpts.Engine)
+		if err != nil {
+			return nil, err
+		}
+		if tn != jsonOpts.TableName {
+			return nil, fmt.Errorf("table name '%s' from schema file %s does not match table arg '%s'", tn, jsonOpts.SchFile, jsonOpts.TableName)
+		}
+		return s, nil
+	}
+
+	if opts == nil {
+		return nil, errors.New("Unable to determine table name on JSON import")
+	}
+
+	tbl, exists, err := root.GetTable(context.TODO(), doltdb.TableName{Name: jsonOpts.TableName})
+	if !exists {
+		return nil, fmt.Errorf("The following table could not be found:\n%v", jsonOpts.TableName)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("An error occurred attempting to read the table:\n%v", err.Error())
+	}
+	sch, err = tbl.GetSchema(context.TODO())
+	if err != nil {
+		return nil, fmt.Errorf("An error occurred attempting to read the table schema:\n%v", err.Error())
+	}
+
+	return sch, nil
 }
 
 // NewCreatingWriter will create a TableWriteCloser for a DataLocation that will create a new table, or overwrite
