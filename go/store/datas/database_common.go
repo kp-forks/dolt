@@ -135,21 +135,6 @@ func (m refmapDatasetsMap) IterAll(ctx context.Context, cb func(string, hash.Has
 	return m.am.IterAll(ctx, cb)
 }
 
-type nomsDatasetsMap struct {
-	m types.Map
-}
-
-func (m nomsDatasetsMap) Len() (uint64, error) {
-	return m.m.Len(), nil
-}
-
-func (m nomsDatasetsMap) IterAll(ctx context.Context, cb func(string, hash.Hash) error) error {
-	return m.m.IterAll(ctx, func(k, v types.Value) error {
-		// TODO: very fast and loose with error checking here.
-		return cb(string(k.(types.String)), v.(types.Ref).TargetHash())
-	})
-}
-
 // Datasets returns the Map of Datasets in the current root. If you intend to edit the map and commit changes back,
 // then you should fetch the current root, then call DatasetsInRoot with that hash. Otherwise, another writer could
 // change the root value between when you get the root hash and call this method.
@@ -165,14 +150,9 @@ func (db *database) Datasets(ctx context.Context) (DatasetsMap, error) {
 			return nil, err
 		}
 		return refmapDatasetsMap{rm}, nil
+	} else {
+		return nil, errors.New("unimplemented or unsupported DatasetsMap type")
 	}
-
-	m, err := db.loadDatasetsNomsMap(ctx, rootHash)
-	if err != nil {
-		return nil, err
-	}
-
-	return nomsDatasetsMap{m}, nil
 }
 
 var ErrInvalidDatasetID = errors.New("Invalid dataset ID")
@@ -206,39 +186,19 @@ func (db *database) GetDatasetByRootHash(ctx context.Context, datasetID string, 
 }
 
 func (db *database) DatasetsByRootHash(ctx context.Context, rootHash hash.Hash) (DatasetsMap, error) {
-
 	if db.Format().UsesFlatbuffers() {
 		rm, err := db.loadDatasetsRefmap(ctx, rootHash)
 		if err != nil {
 			return nil, err
 		}
 		return refmapDatasetsMap{rm}, nil
+	} else {
+		return nil, errors.New("unimplemented or unsupported DatasetsMap type")
 	}
-
-	m, err := db.loadDatasetsNomsMap(ctx, rootHash)
-	if err != nil {
-		return nil, err
-	}
-
-	return nomsDatasetsMap{m}, nil
 }
 
 func (db *database) datasetFromMap(ctx context.Context, datasetID string, dsmap DatasetsMap) (Dataset, error) {
-	if ndsmap, ok := dsmap.(nomsDatasetsMap); ok {
-		datasets := ndsmap.m
-		var headAddr hash.Hash
-		var head types.Value
-		if r, ok, err := datasets.MaybeGet(ctx, types.String(datasetID)); err != nil {
-			return Dataset{}, err
-		} else if ok {
-			headAddr = r.(types.Ref).TargetHash()
-			head, err = r.(types.Ref).TargetValue(ctx, db)
-			if err != nil {
-				return Dataset{}, err
-			}
-		}
-		return newDataset(ctx, db, datasetID, head, headAddr)
-	} else if rmdsmap, ok := dsmap.(refmapDatasetsMap); ok {
+	if rmdsmap, ok := dsmap.(refmapDatasetsMap); ok {
 		var err error
 		curr, err := rmdsmap.am.Get(ctx, datasetID)
 		if err != nil {

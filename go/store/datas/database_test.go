@@ -26,11 +26,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/dolthub/dolt/go/store/chunks"
-	"github.com/dolthub/dolt/go/store/d"
 	"github.com/dolthub/dolt/go/store/hash"
 	"github.com/dolthub/dolt/go/store/types"
 )
@@ -273,77 +271,6 @@ func (suite *DatabaseSuite) TestDatabaseCommit() {
 	l, err := datasets2.Len()
 	suite.NoError(err)
 	suite.Equal(uint64(2), l)
-}
-
-func mustNomsMap(t *testing.T, dsm DatasetsMap) types.Map {
-	m, ok := dsm.(nomsDatasetsMap)
-	require.True(t, ok)
-	return m.m
-}
-
-func (suite *DatabaseSuite) TestDatasetsMapType() {
-	if suite.db.Format().UsesFlatbuffers() {
-		suite.T().Skip()
-	}
-
-	dsID1, dsID2 := "ds1", "ds2"
-
-	datasets, err := suite.db.Datasets(context.Background())
-	suite.NoError(err)
-	ds, err := suite.db.GetDataset(context.Background(), dsID1)
-	suite.NoError(err)
-	ds, err = CommitValue(context.Background(), suite.db, ds, types.String("a"))
-	suite.NoError(err)
-	dss, err := suite.db.Datasets(context.Background())
-	suite.NoError(err)
-	assertMapOfStringToRefOfCommit(context.Background(), mustNomsMap(suite.T(), dss), mustNomsMap(suite.T(), datasets), suite.db)
-
-	datasets, err = suite.db.Datasets(context.Background())
-	suite.NoError(err)
-	ds2, err := suite.db.GetDataset(context.Background(), dsID2)
-	suite.NoError(err)
-	_, err = CommitValue(context.Background(), suite.db, ds2, types.Float(42))
-	suite.NoError(err)
-	dss, err = suite.db.Datasets(context.Background())
-	suite.NoError(err)
-	assertMapOfStringToRefOfCommit(context.Background(), mustNomsMap(suite.T(), dss), mustNomsMap(suite.T(), datasets), suite.db)
-
-	datasets, err = suite.db.Datasets(context.Background())
-	suite.NoError(err)
-	_, err = suite.db.Delete(context.Background(), ds, "")
-	suite.NoError(err)
-	dss, err = suite.db.Datasets(context.Background())
-	suite.NoError(err)
-	assertMapOfStringToRefOfCommit(context.Background(), mustNomsMap(suite.T(), dss), mustNomsMap(suite.T(), datasets), suite.db)
-}
-
-func assertMapOfStringToRefOfCommit(ctx context.Context, proposed, datasets types.Map, vr types.ValueReader) {
-	var derr error
-	changes := make(chan types.ValueChanged)
-	go func() {
-		defer close(changes)
-		derr = proposed.Diff(ctx, datasets, changes)
-	}()
-	for change := range changes {
-		switch change.ChangeType {
-		case types.DiffChangeAdded, types.DiffChangeModified:
-			// Since this is a Map Diff, change.V is the key at which a change was detected.
-			// Go get the Value there, which should be a Ref<Value>, deref it, and then ensure the target is a Commit.
-			val := change.NewValue
-			ref, ok := val.(types.Ref)
-			if !ok {
-				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, but key %s maps to a %s", change.Key.(types.String), mustString(mustType(types.TypeOf(val)).Describe(ctx)))
-			}
-			if targetValue, err := ref.TargetValue(ctx, vr); err != nil {
-				d.PanicIfError(err)
-			} else if is, err := IsCommit(targetValue); err != nil {
-				d.PanicIfError(err)
-			} else if !is {
-				d.Panic("Root of a Database must be a Map<String, Ref<Commit>>, but the ref at key %s points to a %s", change.Key.(types.String), mustString(mustType(types.TypeOf(targetValue)).Describe(ctx)))
-			}
-		}
-	}
-	d.PanicIfError(derr)
 }
 
 func newOpts(vrw types.ValueReadWriter, parent hash.Hash) CommitOptions {
