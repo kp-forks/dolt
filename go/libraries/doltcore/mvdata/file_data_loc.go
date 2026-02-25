@@ -47,6 +47,8 @@ func DFFromString(dfStr string) DataFormat {
 		return XlsxFile
 	case "json", ".json":
 		return JsonFile
+	case "jsonl", ".jsonl":
+		return JsonlFile
 	case "sql", ".sql":
 		return SqlFile
 	case "parquet", ".parquet":
@@ -188,6 +190,10 @@ func (dl FileDataLocation) NewCreatingWriter(ctx context.Context, mvOpts DataMov
 		panic("writing to xlsx files is not supported yet")
 	case JsonFile:
 		return json.NewJSONWriter(wr, outSch)
+	case JsonlFile:
+		// JSONL is newline-delimited JSON objects, one object per row.
+		// We reuse the existing JSON export writer to ensure identical row serialization.
+		return json.NewJSONWriterWithHeader(wr, outSch, "", "\n", "\n")
 	case SqlFile:
 		if mvOpts.IsBatched() {
 			return sqlexport.OpenBatchedSQLExportWriter(ctx, wr, root, mvOpts.SrcName(), mvOpts.IsAutocommitOff(), outSch, opts)
