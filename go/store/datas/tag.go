@@ -133,9 +133,7 @@ func tag_flatbuffer(commitAddr hash.Hash, meta *TagMeta) serial.Message {
 }
 
 func IsTag(ctx context.Context, v types.Value) (bool, error) {
-	if s, ok := v.(types.Struct); ok {
-		return types.IsValueSubtypeOf(s.Format(), v, valueTagType)
-	} else if sm, ok := v.(types.SerialMessage); ok {
+	if sm, ok := v.(types.SerialMessage); ok {
 		data := []byte(sm)
 		return serial.GetFileID(data) == serial.TagFileID, nil
 	}

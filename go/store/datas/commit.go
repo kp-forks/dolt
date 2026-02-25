@@ -748,9 +748,7 @@ func firstError(l, r error) error {
 }
 
 func IsCommit(v types.Value) (bool, error) {
-	if s, ok := v.(types.Struct); ok {
-		return types.IsValueSubtypeOf(s.Format(), v, valueCommitType)
-	} else if sm, ok := v.(types.SerialMessage); ok {
+	if sm, ok := v.(types.SerialMessage); ok {
 		data := []byte(sm)
 		return serial.GetFileID(data) == serial.CommitFileID, nil
 	} else {
