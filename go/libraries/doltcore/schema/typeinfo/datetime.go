@@ -15,9 +15,7 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
@@ -48,59 +46,6 @@ func CreateDatetimeTypeFromSqlType(typ sql.DatetimeType) *datetimeType {
 	return &datetimeType{typ}
 }
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *datetimeType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Timestamp); ok {
-		if ti.Equals(DateType) {
-			return time.Time(val).Truncate(24 * time.Hour).UTC(), nil
-		}
-		return time.Time(val).UTC(), nil
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *datetimeType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.TimestampKind:
-		t, err := reader.ReadTimestamp()
-
-		if err != nil {
-			return nil, err
-		}
-
-		if ti.Equals(DateType) {
-			return t.Truncate(24 * time.Hour).UTC(), nil
-		}
-		return t.UTC(), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *datetimeType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// TODO: handle the zero value as a special case that is valid for all ranges
-	if v == nil {
-		return types.NullValue, nil
-	}
-	timeVal, _, err := ti.sqlDatetimeType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	val, ok := timeVal.(time.Time)
-	if ok {
-		return types.Timestamp(val), nil
-	}
-	return nil, fmt.Errorf(`"%v" has unexpectedly encountered a value of type "%T" from embedded type`, ti.String(), v)
-}
-
 // Equals implements TypeInfo interface.
 func (ti *datetimeType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -112,29 +57,9 @@ func (ti *datetimeType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *datetimeType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Timestamp); ok {
-		_, _, err := ti.sqlDatetimeType.Convert(context.Background(), time.Time(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *datetimeType) NomsKind() types.NomsKind {
 	return types.TimestampKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *datetimeType) Promote() TypeInfo {
-	return &datetimeType{ti.sqlDatetimeType.Promote().(sql.DatetimeType)}
 }
 
 // String implements TypeInfo interface.

@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 
@@ -55,47 +54,6 @@ func CreateBitTypeFromParams(params map[string]string) (TypeInfo, error) {
 	}
 }
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *bitType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Uint); ok {
-		return uint64(val), nil
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *bitType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.UintKind:
-		val := reader.ReadUint()
-		return val, nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *bitType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	uintVal, _, err := ti.sqlBitType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	val, ok := uintVal.(uint64)
-	if ok {
-		return types.Uint(val), nil
-	}
-	return nil, fmt.Errorf(`"%v" has unexpectedly encountered a value of type "%T" from embedded type`, ti.String(), v)
-}
-
 // Equals implements TypeInfo interface.
 func (ti *bitType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -107,29 +65,9 @@ func (ti *bitType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *bitType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Uint); ok {
-		_, _, err := ti.sqlBitType.Convert(context.Background(), uint64(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *bitType) NomsKind() types.NomsKind {
 	return types.UintKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *bitType) Promote() TypeInfo {
-	return &bitType{ti.sqlBitType.Promote().(gmstypes.BitType)}
 }
 
 // String implements TypeInfo interface.

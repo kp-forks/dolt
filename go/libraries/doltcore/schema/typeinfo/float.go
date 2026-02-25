@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -37,60 +36,6 @@ var (
 	Float64Type = &floatType{gmstypes.Float64}
 )
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *floatType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Float); ok {
-		switch ti.sqlFloatType {
-		case gmstypes.Float32:
-			return float32(val), nil
-		case gmstypes.Float64:
-			return float64(val), nil
-		}
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *floatType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.FloatKind:
-		f := reader.ReadFloat(nbf)
-		switch ti.sqlFloatType {
-		case gmstypes.Float32:
-			return float32(f), nil
-		case gmstypes.Float64:
-			return f, nil
-		}
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *floatType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	fltVal, _, err := ti.sqlFloatType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	switch val := fltVal.(type) {
-	case float32:
-		return types.Float(val), nil
-	case float64:
-		return types.Float(val), nil
-	default:
-		return nil, fmt.Errorf(`"%v" has unexpectedly encountered a value of type "%T" from embedded type`, ti.String(), v)
-	}
-}
-
 // Equals implements TypeInfo interface.
 func (ti *floatType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -102,31 +47,9 @@ func (ti *floatType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *floatType) IsValid(v types.Value) bool {
-	// TODO: Add context parameter
-	ctx := sql.NewEmptyContext()
-	if val, ok := v.(types.Float); ok {
-		_, _, err := ti.sqlFloatType.Convert(ctx, float64(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *floatType) NomsKind() types.NomsKind {
 	return types.FloatKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *floatType) Promote() TypeInfo {
-	return &floatType{ti.sqlFloatType.Promote().(sql.NumberType)}
 }
 
 // String implements TypeInfo interface.

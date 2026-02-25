@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -36,42 +35,6 @@ func CreateSetTypeFromSqlSetType(sqlSetType sql.SetType) TypeInfo {
 	return &setType{sqlSetType}
 }
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *setType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Uint); ok {
-		return uint64(val), nil
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *setType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.UintKind:
-		return reader.ReadUint(), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *setType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	val, _, err := ti.sqlSetType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	return types.Uint(val.(uint64)), nil
-}
-
 // Equals implements TypeInfo interface.
 func (ti *setType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -90,29 +53,9 @@ func (ti *setType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *setType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Uint); ok {
-		_, err := ti.sqlSetType.BitsToString(uint64(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *setType) NomsKind() types.NomsKind {
 	return types.UintKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *setType) Promote() TypeInfo {
-	return &setType{ti.sqlSetType.Promote().(sql.SetType)}
 }
 
 // String implements TypeInfo interface.

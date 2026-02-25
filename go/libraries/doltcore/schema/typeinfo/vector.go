@@ -15,13 +15,10 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
-	"strings"
 
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
-	"github.com/dolthub/go-mysql-server/sql/values"
 
 	"github.com/dolthub/dolt/go/store/types"
 )
@@ -42,51 +39,6 @@ type vectorType struct {
 
 var _ TypeInfo = (*vectorType)(nil)
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *vectorType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Blob); ok {
-		return fromBlob(val)
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti, v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *vectorType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.PeekKind()
-	switch k {
-	case types.BlobKind:
-		val, err := reader.ReadBlob()
-		if err != nil {
-			return nil, err
-		}
-		return fromBlob(val)
-	case types.NullKind:
-		_ = reader.ReadKind()
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *vectorType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	strVal, _, err := ti.sqlVectorType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	val, ok := strVal.([]byte)
-	if ok {
-		return types.NewBlob(ctx, vrw, strings.NewReader(string(val)))
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert value "%v" of type "%T" as it is invalid`, ti.String(), v, v)
-}
-
 // Equals implements TypeInfo interface.
 func (ti *vectorType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -98,27 +50,9 @@ func (ti *vectorType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *vectorType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Blob); ok {
-		if int(val.Len()) == ti.sqlVectorType.Dimensions*int(values.Float32Size) {
-			return true
-		}
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *vectorType) NomsKind() types.NomsKind {
 	return types.BlobKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *vectorType) Promote() TypeInfo {
-	return ti
 }
 
 // String implements TypeInfo interface.

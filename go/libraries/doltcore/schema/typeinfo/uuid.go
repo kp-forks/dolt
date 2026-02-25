@@ -15,13 +15,9 @@
 package typeinfo
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
 	"github.com/dolthub/vitess/go/sqltypes"
-	"github.com/google/uuid"
 
 	"github.com/dolthub/dolt/go/store/types"
 )
@@ -34,49 +30,6 @@ var _ TypeInfo = (*uuidType)(nil)
 
 var UuidType = &uuidType{gmstypes.MustCreateString(sqltypes.Char, 36, sql.Collation_ascii_bin)}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *uuidType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.UUID); ok {
-		return val.String(), nil
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *uuidType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.UUIDKind:
-		val := reader.ReadUUID()
-		return val.String(), nil
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *uuidType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	switch val := v.(type) {
-	case nil:
-		return types.NullValue, nil
-	case string:
-		valUuid, err := uuid.Parse(val)
-		if err != nil {
-			return nil, err
-		}
-		return types.UUID(valUuid), err
-	case uuid.UUID:
-		return types.UUID(val), nil
-	default:
-		return nil, fmt.Errorf(`"%v" cannot convert value "%v" of type "%T" as it is invalid`, ti.String(), v, v)
-	}
-}
-
 // Equals implements TypeInfo interface.
 func (ti *uuidType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -86,25 +39,9 @@ func (ti *uuidType) Equals(other TypeInfo) bool {
 	return ok
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *uuidType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.UUID); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *uuidType) NomsKind() types.NomsKind {
 	return types.UUIDKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *uuidType) Promote() TypeInfo {
-	return ti
 }
 
 // String implements TypeInfo interface.

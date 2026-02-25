@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -38,76 +37,6 @@ var (
 	Int64Type = &intType{gmstypes.Int64}
 )
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *intType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if val, ok := v.(types.Int); ok {
-		switch ti.sqlIntType {
-		case gmstypes.Int8:
-			return int8(val), nil
-		case gmstypes.Int16:
-			return int16(val), nil
-		case gmstypes.Int24:
-			return int32(val), nil
-		case gmstypes.Int32:
-			return int32(val), nil
-		case gmstypes.Int64:
-			return int64(val), nil
-		}
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *intType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.IntKind:
-		val := reader.ReadInt()
-		switch ti.sqlIntType {
-		case gmstypes.Int8:
-			return int8(val), nil
-		case gmstypes.Int16:
-			return int16(val), nil
-		case gmstypes.Int24:
-			return int32(val), nil
-		case gmstypes.Int32:
-			return int32(val), nil
-		case gmstypes.Int64:
-			return int64(val), nil
-		}
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *intType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if v == nil {
-		return types.NullValue, nil
-	}
-	intVal, _, err := ti.sqlIntType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	switch val := intVal.(type) {
-	case int8:
-		return types.Int(val), nil
-	case int16:
-		return types.Int(val), nil
-	case int32:
-		return types.Int(val), nil
-	case int64:
-		return types.Int(val), nil
-	default:
-		return nil, fmt.Errorf(`"%v" has unexpectedly encountered a value of type "%T" from embedded type`, ti.String(), v)
-	}
-}
-
 // Equals implements TypeInfo interface.
 func (ti *intType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -120,31 +49,9 @@ func (ti *intType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *intType) IsValid(v types.Value) bool {
-	// TODO: Add context parameter or delete typeinfo package
-	ctx := context.Background()
-	if val, ok := v.(types.Int); ok {
-		_, _, err := ti.sqlIntType.Convert(ctx, int64(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *intType) NomsKind() types.NomsKind {
 	return types.IntKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *intType) Promote() TypeInfo {
-	return &intType{ti.sqlIntType.Promote().(sql.NumberType)}
 }
 
 // String implements TypeInfo interface.

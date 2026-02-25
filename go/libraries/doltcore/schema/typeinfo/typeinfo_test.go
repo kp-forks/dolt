@@ -16,11 +16,13 @@ package typeinfo
 
 import (
 	"fmt"
+	"math"
 	"testing"
 	"time"
 
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
+	"github.com/dolthub/vitess/go/sqltypes"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -118,6 +120,8 @@ func testTypeInfoToSqlType(t *testing.T, tiArrays [][]TypeInfo) {
 	}
 }
 
+var DefaultInlineBlobType = &inlineBlobType{gmstypes.MustCreateBinary(sqltypes.VarBinary, math.MaxUint16)}
+
 // generate unique TypeInfos for each type, and also values that are valid for at least one of the TypeInfos for the matching row
 func generateTypeInfoArrays(t *testing.T, vrw types.ValueReadWriter) ([][]TypeInfo, [][]types.Value) {
 	return [][]TypeInfo{
@@ -190,11 +194,4 @@ func generateTypeInfoArrays(t *testing.T, vrw types.ValueReadWriter) ([][]TypeIn
 				types.String("abcdefghijklmnopqrstuvwxyz"), types.String("هذا هو بعض نماذج النص التي أستخدمها لاختبار عناصر")},
 			{types.Int(1901), types.Int(1950), types.Int(2000), types.Int(2080), types.Int(2155)}, // Year
 		}
-}
-
-func humanReadableString(val types.Value) string {
-	defer func() {
-		_ = recover() // HumanReadableString panics for some types so we ignore the panic
-	}()
-	return val.HumanReadableString()
 }

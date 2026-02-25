@@ -15,9 +15,6 @@
 package typeinfo
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/dolthub/go-mysql-server/sql"
 
 	"github.com/dolthub/dolt/go/store/types"
@@ -30,36 +27,6 @@ var _ TypeInfo = (*tupleType)(nil)
 // This is for internal use only. Used in merge conflicts.
 var TupleType = &tupleType{}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *tupleType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	if _, ok := v.(types.Null); ok {
-		return nil, nil
-	}
-	return v, nil
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *tupleType) ReadFrom(_ *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *tupleType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	if tVal, ok := v.(types.Value); ok {
-		return tVal, nil
-	}
-	if v == nil {
-		return types.NullValue, nil
-	}
-	return nil, fmt.Errorf(`"%v" cannot convert value "%v" of type "%T" as it is invalid`, ti.String(), v, v)
-}
-
 // Equals implements TypeInfo interface.
 func (ti *tupleType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -69,23 +36,9 @@ func (ti *tupleType) Equals(other TypeInfo) bool {
 	return ok
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *tupleType) IsValid(v types.Value) bool {
-	if v == nil {
-		return true
-	}
-	_, ok := v.(types.Value)
-	return ok
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *tupleType) NomsKind() types.NomsKind {
 	return types.TupleKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *tupleType) Promote() TypeInfo {
-	return ti
 }
 
 // String implements TypeInfo interface.

@@ -15,9 +15,6 @@
 package typeinfo
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
 
@@ -34,53 +31,6 @@ var _ TypeInfo = (*multipolygonType)(nil)
 
 var MultiPolygonType = &multipolygonType{gmstypes.MultiPolygonType{}}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *multipolygonType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	// Check for null
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	// Expect a types.MultiPolygon, return a sql.MultiPolygon
-	if val, ok := v.(types.MultiPolygon); ok {
-		return types.ConvertTypesMultiPolygonToSQLMultiPolygon(val), nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *multipolygonType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.MultiPolygonKind:
-		p, err := reader.ReadMultiPolygon()
-		if err != nil {
-			return nil, err
-		}
-		return ti.ConvertNomsValueToValue(p)
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *multipolygonType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// Check for null
-	if v == nil {
-		return types.NullValue, nil
-	}
-
-	// Convert to sql.MultiPolygon
-	mpoly, _, err := ti.sqlMultiPolygonType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.ConvertSQLMultiPolygonToTypesMultiPolygon(mpoly.(gmstypes.MultiPolygon)), nil
-}
-
 // Equals implements TypeInfo interface.
 func (ti *multipolygonType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -93,25 +43,9 @@ func (ti *multipolygonType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *multipolygonType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.MultiPolygon); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *multipolygonType) NomsKind() types.NomsKind {
 	return types.MultiPolygonKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *multipolygonType) Promote() TypeInfo {
-	return &multipolygonType{ti.sqlMultiPolygonType.Promote().(gmstypes.MultiPolygonType)}
 }
 
 // String implements TypeInfo interface.

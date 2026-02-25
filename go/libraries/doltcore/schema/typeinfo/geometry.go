@@ -15,9 +15,6 @@
 package typeinfo
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
 
@@ -34,101 +31,6 @@ var _ TypeInfo = (*geometryType)(nil)
 
 var GeometryType = &geometryType{gmstypes.GeometryType{}}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *geometryType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	// Check for null
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-
-	// Expect a Geometry type, return a sql.Geometry
-	switch val := v.(type) {
-	case types.Geometry:
-		return types.ConvertTypesGeometryToSQLGeometry(val), nil
-	case types.Point:
-		return types.ConvertTypesPointToSQLPoint(val), nil
-	case types.LineString:
-		return types.ConvertTypesLineStringToSQLLineString(val), nil
-	case types.Polygon:
-		return types.ConvertTypesPolygonToSQLPolygon(val), nil
-	case types.MultiPoint:
-		return types.ConvertTypesMultiPointToSQLMultiPoint(val), nil
-	case types.MultiLineString:
-		return types.ConvertTypesMultiLineStringToSQLMultiLineString(val), nil
-	case types.MultiPolygon:
-		return types.ConvertTypesMultiPolygonToSQLMultiPolygon(val), nil
-	case types.GeomColl:
-		return types.ConvertTypesGeomCollToSQLGeomColl(val), nil
-	default:
-		return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-	}
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *geometryType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	var val types.Value
-	var err error
-
-	k := reader.ReadKind()
-	switch k {
-	case types.PointKind:
-		if val, err = reader.ReadPoint(); err != nil {
-			return nil, err
-		}
-	case types.LineStringKind:
-		if val, err = reader.ReadLineString(); err != nil {
-			return nil, err
-		}
-	case types.PolygonKind:
-		if val, err = reader.ReadPolygon(); err != nil {
-			return nil, err
-		}
-	case types.MultiPointKind:
-		if val, err = reader.ReadMultiPoint(); err != nil {
-			return nil, err
-		}
-	case types.MultiLineStringKind:
-		if val, err = reader.ReadMultiLineString(); err != nil {
-			return nil, err
-		}
-	case types.MultiPolygonKind:
-		if val, err = reader.ReadMultiPolygon(); err != nil {
-			return nil, err
-		}
-	case types.GeometryCollectionKind:
-		if val, err = reader.ReadGeomColl(); err != nil {
-			return nil, err
-		}
-	case types.GeometryKind:
-		// Note: GeometryKind is no longer written
-		// included here for backward compatibility
-		if val, err = reader.ReadGeometry(); err != nil {
-			return nil, err
-		}
-	case types.NullKind:
-		return nil, nil
-	default:
-		return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-	}
-
-	return ti.ConvertNomsValueToValue(val)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *geometryType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// Check for null
-	if v == nil {
-		return types.NullValue, nil
-	}
-
-	// Convert accordingly
-	geom, _, err := ti.sqlGeometryType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-	return types.ConvertSQLGeometryToTypesGeometry(geom), nil
-}
-
 // Equals implements TypeInfo interface.
 func (ti *geometryType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -141,34 +43,9 @@ func (ti *geometryType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *geometryType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-
-	switch v.(type) {
-	case types.Geometry,
-		types.Point,
-		types.LineString,
-		types.Polygon,
-		types.MultiPoint,
-		types.MultiLineString,
-		types.MultiPolygon:
-		return true
-	default:
-		return false
-	}
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *geometryType) NomsKind() types.NomsKind {
 	return types.GeometryKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *geometryType) Promote() TypeInfo {
-	return ti
 }
 
 // String implements TypeInfo interface.

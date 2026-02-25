@@ -15,9 +15,6 @@
 package typeinfo
 
 import (
-	"context"
-	"fmt"
-
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
 
@@ -34,53 +31,6 @@ var _ TypeInfo = (*multilinestringType)(nil)
 
 var MultiLineStringType = &multilinestringType{gmstypes.MultiLineStringType{}}
 
-// ConvertNomsValueToValue implements TypeInfo interface.
-func (ti *multilinestringType) ConvertNomsValueToValue(v types.Value) (interface{}, error) {
-	// Check for null
-	if _, ok := v.(types.Null); ok || v == nil {
-		return nil, nil
-	}
-	// Expect a types.MultiLineString, return a sql.MultiLineString
-	if val, ok := v.(types.MultiLineString); ok {
-		return types.ConvertTypesMultiLineStringToSQLMultiLineString(val), nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), v.Kind())
-}
-
-// ReadFrom reads a go value from a noms types.CodecReader directly
-func (ti *multilinestringType) ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error) {
-	k := reader.ReadKind()
-	switch k {
-	case types.MultiLineStringKind:
-		p, err := reader.ReadMultiLineString()
-		if err != nil {
-			return nil, err
-		}
-		return ti.ConvertNomsValueToValue(p)
-	case types.NullKind:
-		return nil, nil
-	}
-
-	return nil, fmt.Errorf(`"%v" cannot convert NomsKind "%v" to a value`, ti.String(), k)
-}
-
-// ConvertValueToNomsValue implements TypeInfo interface.
-func (ti *multilinestringType) ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error) {
-	// Check for null
-	if v == nil {
-		return types.NullValue, nil
-	}
-
-	// Convert to sql.MultiLineString
-	mline, _, err := ti.sqlMultiLineStringType.Convert(ctx, v)
-	if err != nil {
-		return nil, err
-	}
-
-	return types.ConvertSQLMultiLineStringToTypesMultiLineString(mline.(gmstypes.MultiLineString)), nil
-}
-
 // Equals implements TypeInfo interface.
 func (ti *multilinestringType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -93,25 +43,9 @@ func (ti *multilinestringType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-func (ti *multilinestringType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.MultiLineString); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
-
 // NomsKind implements TypeInfo interface.
 func (ti *multilinestringType) NomsKind() types.NomsKind {
 	return types.MultiLineStringKind
-}
-
-// Promote implements TypeInfo interface.
-func (ti *multilinestringType) Promote() TypeInfo {
-	return &multilinestringType{ti.sqlMultiLineStringType.Promote().(gmstypes.MultiLineStringType)}
 }
 
 // String implements TypeInfo interface.
