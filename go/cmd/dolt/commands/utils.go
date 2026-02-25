@@ -354,24 +354,6 @@ func InterpolateAndRunQuery(queryist cli.Queryist, sqlCtx *sql.Context, queryTem
 	return cli.GetRowsForSql(queryist, sqlCtx, query)
 }
 
-// GetTinyIntColAsBool returns the value of a tinyint column as a bool
-// This is necessary because Queryist may return a tinyint column as a bool (when using SQLEngine)
-// or as a string (when using ConnectionQueryist).
-func GetTinyIntColAsBool(col interface{}) (bool, error) {
-	switch v := col.(type) {
-	case bool:
-		return v, nil
-	case byte:
-		return v == 1, nil
-	case int:
-		return v == 1, nil
-	case string:
-		return v == "1", nil
-	default:
-		return false, fmt.Errorf("unexpected type %T, was expecting bool, int, or string", v)
-	}
-}
-
 // getInt64ColAsInt64 returns the value of an int64 column as an int64
 // This is necessary because Queryist may return an int64 column as an int64 (when using SQLEngine)
 // or as a string (when using ConnectionQueryist).
@@ -562,7 +544,7 @@ func GetDoltStatus(queryist cli.Queryist, sqlCtx *sql.Context) (stagedChangedTab
 		tableName := row[0].(string)
 		staged := row[1]
 		var isStaged bool
-		isStaged, err = GetTinyIntColAsBool(staged)
+		isStaged, err = cli.QueryValueAsBool(staged)
 		if err != nil {
 			return
 		}

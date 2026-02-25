@@ -175,19 +175,7 @@ func GetTableResolver(ctx *sql.Context, dbName string) (doltdb.TableResolver, er
 // lookupDbState is the private version of LookupDbState, returning a struct that has more information available than
 // the interface returned by the public method.
 func (d *DoltSession) lookupDbState(ctx *sql.Context, dbName string) (*branchState, bool, error) {
-	dbName = strings.ToLower(dbName)
-	baseName, rev := doltdb.SplitRevisionDbName(dbName)
-
-	// usesDelimiterAlias once normalized goes to false, so any `@` character will not be treated as a delimiter. Since
-	// it has two meanings, either a revision or normal DB, we process twice.
-	normalized, usesDelimiterAlias := doltdb.NormalizeRevisionDelimiter(dbName)
-	if usesDelimiterAlias {
-		state, ok, err := d.lookupDbState(ctx, normalized)
-		if err == nil && ok {
-			return state, ok, err
-		}
-	}
-
+	baseName, rev := doltdb.SplitRevisionDbName(strings.ToLower(dbName))
 	d.mu.Lock()
 	dbState, dbStateFound := d.dbStates[baseName]
 	d.mu.Unlock()

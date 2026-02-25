@@ -150,7 +150,7 @@ Found a bug? Want additional features? Please let us know! https://github.com/do
 }
 
 func generateHelpPrompt(sqlCtx *sql.Context, qryist cli.Queryist) string {
-	resolver := prompt.NewPartsResolver()
+	resolver := prompt.NewPromptResolver()
 	var parts prompt.Parts
 	var resolved bool
 

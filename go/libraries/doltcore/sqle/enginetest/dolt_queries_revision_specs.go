@@ -15,8 +15,11 @@
 package enginetest
 
 import (
+	"fmt"
+
 	"github.com/dolthub/go-mysql-server/enginetest/queries"
 	"github.com/dolthub/go-mysql-server/sql"
+	"github.com/dolthub/go-mysql-server/sql/plan"
 	"github.com/dolthub/go-mysql-server/sql/types"
 )
 
@@ -405,145 +408,76 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 		},
 	},
 	{
-		Name: "database revision specs: db revision delimiter alias '@' is ignored when no revision exists",
-		SetUpScript: []string{
-			"create database `mydb@branch1`;",
-			"create table t1(t int);",
-			"call dolt_commit('-Am', 'init t1');",
-			"create database `test-10382`;",
-			"use `test-10382`;",
-		},
-		Assertions: []queries.ScriptTestAssertion{
-			{
-				Query:    "use `mydb@branch1`;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "drop database `test-10382`;",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-			{
-				Query:    "select database();",
-				Expected: []sql.Row{{"mydb@branch1"}},
-			},
-			{
-				Query:    "show databases",
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb@branch1"}, {"mysql"}},
-			},
-			{
-				Query:    "set dolt_show_branch_databases = on;",
-				Expected: []sql.Row{{types.NewOkResult(0)}},
-			},
-			{
-				Query:    "show databases",
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb/main"}, {"mydb@branch1"}, {"mydb@branch1/main"}, {"mysql"}},
-			},
-			{
-				Query:    "use `mydb@branch1`;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "call dolt_branch('branch2');",
-				Expected: []sql.Row{{0}},
-			},
-			{
-				Query:    "use `mydb@branch1@branch2`;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "select database();",
-				Expected: []sql.Row{{"mydb@branch1@branch2"}},
-			},
-			{
-				Query:    "use `mydb@branch1`;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "show databases",
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb/main"}, {"mydb@branch1"}, {"mydb@branch1/main"}, {"mydb@branch1/branch2"}, {"mysql"}},
-			},
-			{
-				Query:    "call dolt_branch('branch@');",
-				Expected: []sql.Row{{0}},
-			},
-			{
-				Query:    "show databases",
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb/main"}, {"mydb@branch1"}, {"mydb@branch1/main"}, {"mydb@branch1/branch2"}, {"mydb@branch1/branch@"}, {"mysql"}},
-			},
-			{
-				Query:    "set dolt_show_branch_databases = off;",
-				Expected: []sql.Row{{types.NewOkResult(0)}},
-			},
-			{
-				Query:    "show databases",
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb@branch1"}, {"mysql"}},
-			},
-			{
-				Query:       "select * from t1;",
-				ExpectedErr: sql.ErrTableNotFound,
-			},
-			{
-				Query:    "use mydb;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "select * from t1;",
-				Expected: []sql.Row{},
-			},
-		},
-	},
-	{
 		Name: "database revision specs: db revision delimiter alias '@'",
 		SetUpScript: []string{
-			"create table t01 (pk int primary key, c1 int);",
-			"call dolt_add('.');",
-			"call dolt_commit('-am', 'creating table t01 on main');",
-			"insert into t01 values (1, 1), (2, 2);",
-			"call dolt_commit('-am', 'adding rows to table t01 on main');",
-			"call dolt_tag('tag1');",
+			"create table t02 (pk int primary key, c1 int);",
+			"call dolt_commit('-Am', 'creating table t02 on main');",
+			"call dolt_tag('tag2');",
 		},
 		Assertions: []queries.ScriptTestAssertion{
 			{
-				Query:    "create database `mydb@branch1`;",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-			{
-				Query:    "use mydb;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "call dolt_branch('branch1');",
-				Expected: []sql.Row{{0}},
-			},
-			{
-				Query:    "insert into t01 values (3, 3);",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-			{
-				Query:            "call dolt_commit('-am', 'adding rows to table t01');",
-				SkipResultsCheck: true,
+				Query:          "create database `mydb@branch1`;",
+				ExpectedErr:    sql.ErrWrongDBName,
+				ExpectedErrStr: "mydb@branch1",
 			},
 			{
 				Query:    "use `mydb@main`;",
 				Expected: []sql.Row{},
 			},
 			{
-				Query: "show databases;",
-				// The mydb@branch1 database is shown, not the revision `branch1` from `mydb` cause we're on `main`.
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb@branch1"}, {"mydb@main"}, {"mysql"}},
+				// We want to show the revision database in-use as the original requested name.
+				Query:    "show databases;",
+				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb@main"}, {"mysql"}},
+			},
+			{
+				Query:    "call dolt_checkout('-b', 'branch@');",
+				Expected: []sql.Row{{0, "Switched to branch 'branch@'"}},
+			},
+			{
+				Query: "use `mydb/branch@`",
+				// The `/` delimiter takes precedence over the alias.
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select database()",
+				Expected: []sql.Row{{"mydb/branch@"}},
+			},
+			{
+				Query: "drop database `mydb@branch@`",
+				// The first index is processed first, allowing branch names with the @ character.
+				ExpectedErrStr: fmt.Sprintf("unable to drop revision database: %s", "mydb@branch@"),
+			},
+			{
+				Query:    "use `mydb@branch@`;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query: "call dolt_checkout('-b', 'branch1');",
+				// dolt_checkout works from a revision database using the alias delimiter.
+				Expected: []sql.Row{{0, "Switched to branch 'branch1'"}},
+			},
+			{
+				Query:    "call dolt_branch('-D', 'branch@');",
+				Expected: []sql.Row{{0}},
+			},
+			{
+				Query:    "create table t01(pk int primary key, c1 int);",
+				Expected: []sql.Row{{types.NewOkResult(0)}},
+			},
+			{
+				Query:    "call dolt_commit('-Am', 'creating table t01 on branch1');",
+				Expected: []sql.Row{{doltCommit}},
 			},
 			{
 				Query:    "use `mydb@branch1`;",
 				Expected: []sql.Row{},
 			},
 			{
-				Query: "show databases;",
-				// The revision branch1 is shown, not the `mydb@branch1` database.
+				Query:    "show databases;",
 				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb@branch1"}, {"mysql"}},
 			},
 			{
-				Query: "select database();",
-				// We want to see the revision shown in the format it was requested, this is not the literal db.
+				Query:    "select database();",
 				Expected: []sql.Row{{"mydb@branch1"}},
 			},
 			{
@@ -552,15 +486,54 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 			},
 			{
 				Query:    "show databases;",
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb/main"}, {"mydb@branch1"}, {"mysql"}},
+				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb@branch1"}, {"mydb/main"}, {"mysql"}},
 			},
 			{
 				Query:    "select active_branch();",
 				Expected: []sql.Row{{"branch1"}},
 			},
 			{
+				Query:    "select * from `mydb@branch1`.t01;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "insert into `mydb@branch1`.t01 values (1, 10), (2, 20);",
+				Expected: []sql.Row{{types.NewOkResult(2)}},
+			},
+			{
+				Query:    "select * from `mydb@branch1`.t01 order by pk;",
+				Expected: []sql.Row{{1, 10}, {2, 20}},
+			},
+			{
+				Query: "update `mydb@branch1`.t01 set c1 = 30 where pk = 2;",
+				Expected: []sql.Row{{types.OkResult{
+					Info:         plan.UpdateInfo{Matched: 1, Updated: 1},
+					RowsAffected: 1,
+				}}},
+			},
+			{
+				Query:    "select * from `mydb@branch1`.t01 where pk = 2;",
+				Expected: []sql.Row{{2, 30}},
+			},
+			{
+				Query:    "delete from `mydb@branch1`.t01 where pk = 1;",
+				Expected: []sql.Row{{types.NewOkResult(1)}},
+			},
+			{
+				Query:    "select * from `mydb@branch1`.t01 order by pk;",
+				Expected: []sql.Row{{2, 30}},
+			},
+			{
+				Query:    "alter table `mydb@branch1`.t01 add index idx_t01_c1 (c1);",
+				Expected: []sql.Row{{types.NewOkResult(0)}},
+			},
+			{
+				Query:    "select index_name, column_name from information_schema.statistics where table_schema = database() and table_name = 't01' and index_name = 'idx_t01_c1' order by seq_in_index;",
+				Expected: []sql.Row{{"idx_t01_c1", "c1"}},
+			},
+			{
 				Query:    "select * from t01;",
-				Expected: []sql.Row{{1, 1}, {2, 2}},
+				Expected: []sql.Row{{2, 30}},
 			},
 			{
 				Query:    "select column_name from information_schema.columns where table_schema = database() and table_name = 't01' order by ordinal_position;",
@@ -569,26 +542,6 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 			{
 				Query:    "select table_name from information_schema.tables where table_schema = database() and table_name = 't01';",
 				Expected: []sql.Row{{"t01"}},
-			},
-			{
-				Query:    "use mydb;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "show databases;",
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb/main"}, {"mydb/branch1"}, {"mydb@branch1"}, {"mydb@branch1/main"}, {"mysql"}},
-			},
-			{
-				Query:    "select * from `mydb@branch1`.t01;",
-				Expected: []sql.Row{{1, 1}, {2, 2}},
-			},
-			{
-				Query:    "select * from `mydb@tag1`.t01;",
-				Expected: []sql.Row{{1, 1}, {2, 2}},
-			},
-			{
-				Query:    "use `mydb@branch1`;",
-				Expected: []sql.Row{},
 			},
 			{
 				Query:    "create table parent(id int primary key);",
@@ -612,7 +565,7 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 			},
 			{
 				Query:    "show databases;",
-				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb/main"}, {"mydb/branch1"}, {"mydb@branch1"}, {"mydb@branch1/main"}, {"mysql"}},
+				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb/branch1"}, {"mydb/main"}, {"mysql"}},
 			},
 			{
 				Query:    "select database();",
@@ -620,16 +573,11 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 			},
 			{
 				Query:    "select * from t01;",
-				Expected: []sql.Row{{1, 1}, {2, 2}},
+				Expected: []sql.Row{{2, 30}},
 			},
 			{
 				Query:    "select column_name from information_schema.columns where table_schema = database() and table_name = 't01' order by ordinal_position;",
 				Expected: []sql.Row{{"pk"}, {"c1"}},
-			},
-			{
-				Query: "drop database `mydb@branch1`;",
-				// The name above can be resolved to a real revision so we error out, keeping parity with CREATE below.
-				ExpectedErrStr: "unable to drop revision database: mydb@branch1",
 			},
 			{
 				Query:    "select table_name from information_schema.tables where table_schema = database() and table_name = 't01';",
@@ -644,64 +592,29 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 				Expected: []sql.Row{{1, 1}},
 			},
 			{
-				Query:    "use mydb;",
+				Query:    "drop table `mydb@branch1`.child;",
+				Expected: []sql.Row{{types.NewOkResult(0)}},
+			},
+			{
+				Query:    "select table_name from information_schema.tables where table_schema = database() and table_name = 'child';",
 				Expected: []sql.Row{},
 			},
 			{
-				Query:    "call dolt_branch('-D', 'branch1');",
-				Expected: []sql.Row{{0}},
+				Query:    "select * from `mydb@tag2`.t02;",
+				Expected: []sql.Row{},
 			},
 			{
-				Query:    "drop database `mydb@branch1`;",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
+				Query:    "use `mydb/branch1`;",
+				Expected: []sql.Row{},
 			},
 			{
-				Query:    "call dolt_branch('branch1');",
-				Expected: []sql.Row{{0}},
+				Query:    "select * from t01;",
+				Expected: []sql.Row{{2, 30}},
 			},
 			{
 				Query: "create database `mydb@branch1`;",
 				// This is a result of GMS' internal call to the providers' HasDatabase
 				ExpectedErrStr: "can't create database mydb@branch1; database exists",
-			},
-			{
-				Query:    "call dolt_branch('-D', 'branch1');",
-				Expected: []sql.Row{{0}},
-			},
-			{
-				Query:    "create database `mydb@branch1`;",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-		},
-	},
-	{
-		Name: "database revision specs: base_database and active_revision",
-		SetUpScript: []string{
-			"create table t1(pk int primary key);",
-			"call dolt_add('.');",
-			"call dolt_commit('-am', 'init');",
-			"call dolt_branch('branch1');",
-		},
-		Assertions: []queries.ScriptTestAssertion{
-			{
-				Query:    "select base_database(), active_revision();",
-				Expected: []sql.Row{{"mydb", "main"}},
-			},
-			{
-				Query:    "call dolt_checkout('branch1');",
-				Expected: []sql.Row{{0, "Switched to branch 'branch1'"}},
-			},
-			{
-				Query:    "select base_database(), active_revision();",
-				Expected: []sql.Row{{"mydb", "branch1"}},
-			},
-			{
-				Query:    "use `mydb@branch1`;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "select base_database(), active_revision();",
-				Expected: []sql.Row{{"mydb", "branch1"}},
 			},
 		},
 	},
@@ -711,13 +624,13 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 			"create table t01 (pk int primary key, c1 int);",
 			"call dolt_add('.');",
 			"call dolt_commit('-am', 'creating table t01 on main');",
-			"set @h = (select hashof('main') limit 1);",
-			"set @use_sql = concat('use `mydb@', @h, '`');",
+			"set @h1 = (select hashof('main') limit 1);",
+			"set @use_sql = concat('use `mydb@', @h1, '`');",
 			"prepare use_stmt from @use_sql;",
 			"insert into t01 values (1, 1), (2, 2);",
 			"call dolt_commit('-am', 'adding rows to table t01 on main');",
-			"set @h = (select hashof('main') limit 1);",
-			"set @select_sql = concat('select * from `mydb@', @h, '`.t01');",
+			"set @h2 = (select hashof('main') limit 1);",
+			"set @select_sql = concat('select * from `mydb@', @h2, '`.t01');",
 			"prepare select_stmt from @select_sql;",
 		},
 		Assertions: []queries.ScriptTestAssertion{
@@ -728,6 +641,10 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 			{
 				Query:    "select length(database());",
 				Expected: []sql.Row{{37}},
+			},
+			{
+				Query:    "select @h1;",
+				Expected: []sql.Row{{doltCommit}},
 			},
 			{
 				Query:    "select * from t01;",

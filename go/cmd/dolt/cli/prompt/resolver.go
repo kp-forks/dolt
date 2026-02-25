@@ -16,6 +16,7 @@ package prompt
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/dolthub/go-mysql-server/sql"
 
@@ -23,26 +24,25 @@ import (
 	"github.com/dolthub/dolt/go/libraries/doltcore/doltdb"
 )
 
-// Parts contains shell prompt components to render in the final prompt.
+// Parts contains shell prompt components to render the SQL shell prompt.
 type Parts struct {
-	BaseDatabase   string
-	ActiveRevision string
-	IsBranch       bool
-	Dirty          bool
+	BaseDatabase      string
+	ActiveRevision    string
+	RevisionDelimiter string
+	IsBranch          bool
+	Dirty             bool
 }
 
-// Resolver resolves prompt Parts for the active session.
+// revisionDelimiters follows [doltdb]'s definition to separate the base database from the revision.
+var revisionDelimiters = []string{doltdb.DbRevisionDelimiter, doltdb.DbRevisionDelimiterAlias}
+
+// Resolver resolves prompt [prompt.Parts] for the active session.
 type Resolver interface {
 	Resolve(sqlCtx *sql.Context, queryist cli.Queryist) (parts Parts, resolved bool, err error)
 }
 
-// sqlBaseRevisionResolver can resolve [prompt.Parts] using Dolt specific SQL functions that return canonical base
-// database and revision, even when the [doltdb.DbRevisionDelimiterAlias] is in use.
-type sqlBaseRevisionResolver struct{}
-
-// sqlDBActiveBranchResolver can resolve [prompt.Parts] using the SQL-specific functions. It is a fallback for older
-// servers, and is the method older shells use in general. This resolver does not support
-// [doltdb.DbRevisionDelimiterAlias] as a revision delimiter.
+// sqlDBActiveBranchResolver can resolve [prompt.Parts] using the Dolt SQL functions, and supports
+// [doltdb.DbRevisionDelimiter] and [doltdb.DbRevisionDelimiterAlias].
 type sqlDBActiveBranchResolver struct{}
 
 // chainedResolver can resolve [prompt.Parts] through the sequential execution [prompt.Resolver](s).
@@ -50,11 +50,10 @@ type chainedResolver struct {
 	resolvers []Resolver
 }
 
-// NewPartsResolver constructs an up-to-date [prompt.Resolver].
-func NewPartsResolver() Resolver {
+// NewPromptResolver constructs an up-to-date [prompt.Resolver].
+func NewPromptResolver() Resolver {
 	return chainedResolver{
 		resolvers: []Resolver{
-			sqlBaseRevisionResolver{},
 			sqlDBActiveBranchResolver{},
 		},
 	}
@@ -75,97 +74,75 @@ func (cr chainedResolver) Resolve(sqlCtx *sql.Context, queryist cli.Queryist) (p
 	return Parts{}, false, nil
 }
 
-// Resolve resolves [prompt.Parts] through SQL functions `base_database()` and `active_revision()`.
-func (sqlBaseRevisionResolver) Resolve(sqlCtx *sql.Context, queryist cli.Queryist) (parts Parts, resolved bool, err error) {
-	parts = Parts{}
-
-	rows, err := cli.GetRowsForSql(queryist, sqlCtx, "select base_database() as base_database, active_revision() as active_revision")
-	if sql.ErrFunctionNotFound.Is(err) {
-		// Running on an older version.
-		return parts, false, nil
-	} else if err != nil {
-		return parts, false, err
-	}
-
-	if len(rows) > 0 {
-		if len(rows[0]) > 0 {
-			parts.BaseDatabase, err = cli.GetStringColumnValue(rows[0][0])
-			if err != nil {
-				return parts, false, err
-			}
-		}
-		if len(rows[0]) > 1 {
-			parts.ActiveRevision, err = cli.GetStringColumnValue(rows[0][1])
-			if err != nil {
-				return parts, false, err
-			}
-		}
-	}
-
-	parts.Dirty, parts.IsBranch, err = resolveDirty(sqlCtx, queryist, parts)
-	if err != nil {
-		return parts, false, err
-	}
-	return parts, true, nil
-}
-
-// Resolve resolves the base database and active revision through the SQL-specific functions `database()` and
-// `active_branch()`. Unfortunately, to maintain support for ORMs that rely on the database in their connection URL,
-// this method cannot interpret [doltdb.DbRevisionDelimiterAlias] as a revision delimiter.
+// Resolve resolves the base DB and revision through the SQL function `database()` and Dolt-specific `active_branch()`.
 func (sqlDBActiveBranchResolver) Resolve(sqlCtx *sql.Context, queryist cli.Queryist) (parts Parts, resolved bool, err error) {
-	parts = Parts{}
 	dbRows, err := cli.GetRowsForSql(queryist, sqlCtx, "select database() as db")
 	if err != nil {
 		return parts, false, err
 	}
 	if len(dbRows) > 0 && len(dbRows[0]) > 0 {
-		dbName, err := cli.GetStringColumnValue(dbRows[0][0])
+		dbName, err := cli.QueryValueAsString(dbRows[0][0])
 		if err != nil {
 			return parts, false, err
 		}
+		// Handles non-branch revisions (i.e., commit hash, tags, etc.).
 		parts.BaseDatabase, parts.ActiveRevision = doltdb.SplitRevisionDbName(dbName)
+
+		parts.RevisionDelimiter = doltdb.DbRevisionDelimiter
+		for _, delimiter := range revisionDelimiters {
+			if strings.Contains(dbName, delimiter) {
+				parts.RevisionDelimiter = delimiter
+				break
+			}
+		}
 	}
 
-	if parts.ActiveRevision == "" {
-		activeBranchRows, err := cli.GetRowsForSql(queryist, sqlCtx, "select active_branch() as branch")
-		if err != nil {
-			return parts, false, err
-		}
-		if len(activeBranchRows) > 0 && len(activeBranchRows[0]) > 0 {
-			parts.ActiveRevision, err = cli.GetStringColumnValue(activeBranchRows[0][0])
+	activeBranchRows, err := cli.GetRowsForSql(queryist, sqlCtx, "select active_branch() as branch")
+	if err != nil {
+		return parts, false, err
+	}
+
+	if len(activeBranchRows) > 0 && len(activeBranchRows[0]) > 0 {
+		parts.IsBranch = activeBranchRows[0][0] != nil
+		if parts.ActiveRevision == "" {
+			parts.ActiveRevision, err = cli.QueryValueAsString(activeBranchRows[0][0])
 			if err != nil {
 				return parts, false, err
 			}
 		}
 	}
 
-	parts.Dirty, parts.IsBranch, err = resolveDirty(sqlCtx, queryist, parts)
+	parts.Dirty, err = resolveDirty(sqlCtx, queryist, parts)
 	if err != nil {
 		return parts, false, err
 	}
+
 	return parts, true, nil
 }
 
 // resolveDirty resolves the dirty state of the current branch and whether the revision type is a branch.
-func resolveDirty(sqlCtx *sql.Context, queryist cli.Queryist, parts Parts) (dirty bool, isBranch bool, err error) {
+func resolveDirty(sqlCtx *sql.Context, queryist cli.Queryist, parts Parts) (dirty bool, err error) {
 	if doltdb.IsValidCommitHash(parts.ActiveRevision) {
-		return false, false, nil
+		return false, nil
 	}
 
 	rows, err := cli.GetRowsForSql(queryist, sqlCtx, "select count(table_name) > 0 as dirty from dolt_status")
+	// [sql.ErrTableNotFound] detects when viewing a non-Dolt database (e.g., information_schema). Older servers may
+	// complain about [doltdb.ErrOperationNotSupportedInDetachedHead], but read-only revisions in newer versions this
+	// issue should be gone.
 	if errors.Is(err, doltdb.ErrOperationNotSupportedInDetachedHead) || sql.ErrTableNotFound.Is(err) {
-		return false, false, nil
+		return false, nil
 	} else if err != nil {
-		return false, false, err
+		return false, err
 	}
 
 	if len(rows) == 0 || len(rows[0]) == 0 {
-		return false, false, nil
+		return false, nil
 	}
-	dirty, err = cli.GetBoolColumnValue(rows[0][0])
+	dirty, err = cli.QueryValueAsBool(rows[0][0])
 	if err != nil {
-		return false, false, err
+		return false, err
 	}
 
-	return dirty, true, nil
+	return dirty, nil
 }

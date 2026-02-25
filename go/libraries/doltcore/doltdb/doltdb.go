@@ -2394,28 +2394,13 @@ func RevisionDbName(baseName string, rev string) string {
 	return baseName + DbRevisionDelimiter + rev
 }
 
-// SplitRevisionDbName returns the base database name and revision from a traditional revision-qualified name. Splits on
-// the first "/".
+// SplitRevisionDbName returns the base database name and revision from a revision-qualified name. Resolves on the
+// [DbRevisionDelimiter] and [DbRevisionDelimiterAlias].
 func SplitRevisionDbName(dbName string) (string, string) {
-	if idx := strings.Index(dbName, DbRevisionDelimiter); idx >= 0 {
-		return dbName[:idx], dbName[idx+1:]
+	if base, revision, ok := strings.Cut(dbName, DbRevisionDelimiter); ok && base != "" {
+		return base, revision
+	} else if base, revision, ok := strings.Cut(dbName, DbRevisionDelimiterAlias); ok && base != "" {
+		return base, revision
 	}
 	return dbName, ""
-}
-
-// NormalizeRevisionDelimiter rewrites "base@revision" names to "base/revision". Names that already contain "/" are
-// returned unchanged so bases that include "@" keep their existing interpretation.
-func NormalizeRevisionDelimiter(dbName string) (rewrite string, usesDelimiterAlias bool) {
-	if strings.Contains(dbName, DbRevisionDelimiter) {
-		return dbName, false
-	}
-
-	lastAliasIndex := strings.LastIndex(dbName, DbRevisionDelimiterAlias)
-	if lastAliasIndex < 0 {
-		return dbName, false
-	}
-
-	base := dbName[:lastAliasIndex]
-	revision := dbName[lastAliasIndex+1:]
-	return RevisionDbName(base, revision), true
 }

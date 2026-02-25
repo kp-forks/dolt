@@ -952,27 +952,31 @@ func preprocessQuery(query, lastQuery string, cliCtx cli.CliContext) (CommandTyp
 // postCommandUpdate is a helper function that is run after the shell has completed a command. It updates the database
 // if needed, and generates new prompts for the shell (based on the branch and if the workspace is dirty).
 func postCommandUpdate(sqlCtx *sql.Context, qryist cli.Queryist) (string, string) {
-	resolver := prompt.NewPartsResolver()
+	promptResolver := prompt.NewPromptResolver()
 	var parts prompt.Parts
-	var resolved bool
-
+	resolved := false
 	err := cli.WithQueryWarningsLocked(sqlCtx, qryist, func() error {
 		var err error
-		parts, resolved, err = resolver.Resolve(sqlCtx, qryist)
+		parts, resolved, err = promptResolver.Resolve(sqlCtx, qryist)
 		return err
 	})
 	if err != nil {
 		cli.PrintErrln(err.Error())
 	}
-	if resolved && parts.ActiveRevision != "" {
-		sqlCtx.SetCurrentDatabase(parts.BaseDatabase + doltdb.DbRevisionDelimiter + parts.ActiveRevision)
-	} else if resolved {
-		sqlCtx.SetCurrentDatabase(parts.BaseDatabase)
-	} else {
-		cli.PrintErrln(color.YellowString("Failed to set new current database for the post command update"))
-		baseDatabase, activeRevision := doltdb.SplitRevisionDbName(sqlCtx.GetCurrentDatabase())
-		return formattedPrompts(baseDatabase, activeRevision, false)
+
+	if !resolved {
+		cli.PrintErrln(color.YellowString("Failed to set new current database on post command update"))
+		parts.BaseDatabase, parts.ActiveRevision = doltdb.SplitRevisionDbName(sqlCtx.GetCurrentDatabase())
+		return formattedPrompts(parts.BaseDatabase, parts.ActiveRevision, parts.Dirty)
 	}
+
+	var builder strings.Builder
+	builder.WriteString(parts.BaseDatabase)
+	if parts.ActiveRevision != "" {
+		builder.WriteString(parts.RevisionDelimiter)
+		builder.WriteString(parts.ActiveRevision)
+	}
+	sqlCtx.SetCurrentDatabase(builder.String())
 
 	return formattedPrompts(parts.BaseDatabase, parts.ActiveRevision, parts.Dirty)
 }
