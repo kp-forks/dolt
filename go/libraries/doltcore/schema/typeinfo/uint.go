@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"

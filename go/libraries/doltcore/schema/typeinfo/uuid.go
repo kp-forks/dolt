@@ -15,8 +15,6 @@
 package typeinfo
 
 import (
-	"fmt"
-
 	"github.com/dolthub/go-mysql-server/sql"
 	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
 	"github.com/dolthub/vitess/go/sqltypes"
