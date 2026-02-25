@@ -297,16 +297,6 @@ func (m Map) isPrimitive() bool {
 	return false
 }
 
-func (m Map) IteratorBackFrom(ctx context.Context, key Value) (MapIterator, error) {
-	cur, err := newCursorBackFromValue(ctx, m.orderedSequence, key)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &mapIterator{sequenceIter: cur}, nil
-}
-
 type mapIterAllCallback func(key, value Value) error
 
 func (m Map) IterAll(ctx context.Context, cb mapIterAllCallback) error {
