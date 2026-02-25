@@ -16,7 +16,6 @@ package typeinfo
 
 import (
 	"fmt"
-	"unsafe"
 
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/vitess/go/sqltypes"
