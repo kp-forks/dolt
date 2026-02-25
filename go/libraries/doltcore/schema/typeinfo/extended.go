@@ -33,8 +33,6 @@ func CreateExtendedTypeFromSqlType(typ sql.ExtendedType) TypeInfo {
 	return &extendedType{typ}
 }
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements the TypeInfo interface.
 func (ti *extendedType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -46,14 +44,10 @@ func (ti *extendedType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements the TypeInfo interface.
-
 // NomsKind implements the TypeInfo interface.
 func (ti *extendedType) NomsKind() types.NomsKind {
 	return types.ExtendedKind
 }
-
-// Promote implements the TypeInfo interface.
 
 // String implements the TypeInfo interface.
 func (ti *extendedType) String() string {
