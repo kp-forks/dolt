@@ -299,45 +299,6 @@ func (m Map) isPrimitive() bool {
 
 type mapIterAllCallback func(key, value Value) error
 
-func (m Map) IterRange(ctx context.Context, startIdx, endIdx uint64, cb mapIterAllCallback) error {
-	var k Value
-	_, err := iterRange(ctx, m, startIdx, endIdx, func(v Value) error {
-		if k != nil {
-			err := cb(k, v)
-
-			if err != nil {
-				return err
-			}
-
-			k = nil
-		} else {
-			k = v
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return err
-	}
-
-	d.PanicIfFalse(k == nil)
-	return nil
-}
-
-func (m Map) IterFrom(ctx context.Context, start Value, cb mapIterCallback) error {
-	cur, err := newCursorAtValue(ctx, m.orderedSequence, start, false, false)
-
-	if err != nil {
-		return err
-	}
-
-	return cur.iter(ctx, func(v interface{}) (bool, error) {
-		entry := v.(mapEntry)
-		return cb(entry.key, entry.value)
-	})
-}
-
 func (m Map) Edit() *MapEditor {
 	return NewMapEditor(m)
 }
