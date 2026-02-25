@@ -80,8 +80,16 @@ func doDoltCherryPick(ctx *sql.Context, args []string) (string, int, int, int, e
 		return "", 0, 0, 0, err
 	}
 
+	if apr.Contains(cli.AbortParam) && apr.Contains(cli.ContinueFlag) {
+		return "", 0, 0, 0, fmt.Errorf("error: --continue and --abort are mutually exclusive")
+	}
+
 	if apr.Contains(cli.AbortParam) {
 		return "", 0, 0, 0, cherry_pick.AbortCherryPick(ctx, dbName)
+	}
+
+	if apr.Contains(cli.ContinueFlag) {
+		return cherry_pick.ContinueCherryPick(ctx, dbName)
 	}
 
 	// we only support cherry-picking a single commit for now.
@@ -102,6 +110,8 @@ func doDoltCherryPick(ctx *sql.Context, args []string) (string, int, int, int, e
 	if apr.Contains(cli.AllowEmptyFlag) {
 		cherryPickOptions.EmptyCommitHandling = doltdb.KeepEmptyCommit
 	}
+
+	cherryPickOptions.SkipVerification = apr.Contains(cli.SkipVerificationFlag)
 
 	commit, mergeResult, err := cherry_pick.CherryPick(ctx, cherryStr, cherryPickOptions)
 	if err != nil {

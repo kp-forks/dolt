@@ -37,37 +37,8 @@ type XLSXReader struct {
 	info   *XLSXFileInfo
 	sch    schema.Schema
 	ind    int
-	rows   []sql.Row
+	rows   [][]string
 	vrw    types.ValueReadWriter
-}
-
-func OpenXLSXReaderFromBinary(ctx context.Context, vrw types.ValueReadWriter, r io.ReadCloser, info *XLSXFileInfo) (*XLSXReader, error) {
-	br := bufio.NewReaderSize(r, ReadBufSize)
-
-	contents, err := io.ReadAll(r)
-	if err != nil {
-		return nil, err
-	}
-
-	colStrs, err := getColHeadersFromBinary(contents, info.SheetName)
-	if err != nil {
-		return nil, err
-	}
-
-	data, err := getXlsxRowsFromBinary(contents, info.SheetName)
-	if err != nil {
-		return nil, err
-	}
-
-	_, sch := untyped.NewUntypedSchema(colStrs...)
-
-	decodedRows, err := decodeXLSXRows(data, sch)
-	if err != nil {
-		r.Close()
-		return nil, err
-	}
-
-	return &XLSXReader{r, br, info, sch, 0, decodedRows, vrw}, nil
 }
 
 func OpenXLSXReader(ctx context.Context, vrw types.ValueReadWriter, path string, fs filesys.ReadableFS, info *XLSXFileInfo) (*XLSXReader, error) {
@@ -97,21 +68,18 @@ func OpenXLSXReader(ctx context.Context, vrw types.ValueReadWriter, path string,
 		return nil, err
 	}
 
-	return &XLSXReader{r, br, info, sch, 0, decodedRows, vrw}, nil
+	return &XLSXReader{
+		closer: r,
+		bRd:    br,
+		info:   info,
+		sch:    sch,
+		rows:   decodedRows,
+		vrw:    vrw,
+	}, nil
 }
 
 func getColHeadersFromPath(path string, sheetName string) ([]string, error) {
 	data, err := getXlsxRowsFromPath(path, sheetName)
-	if err != nil {
-		return nil, err
-	}
-
-	colHeaders := data[0][0]
-	return colHeaders, nil
-}
-
-func getColHeadersFromBinary(content []byte, sheetName string) ([]string, error) {
-	data, err := getXlsxRowsFromBinary(content, sheetName)
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +120,7 @@ func (xlsxr *XLSXReader) ReadRow(ctx context.Context) (row.Row, error) {
 	sqlRow := xlsxr.rows[xlsxr.ind]
 
 	allCols.Iter(func(tag uint64, col schema.Column) (stop bool, err error) {
-		taggedVals[tag], err = col.TypeInfo.ConvertValueToNomsValue(ctx, xlsxr.vrw, sqlRow[allCols.TagToIdx[tag]])
+		taggedVals[tag] = types.String(sqlRow[allCols.TagToIdx[tag]])
 		return false, err
 	})
 
@@ -174,5 +142,9 @@ func (xlsxr *XLSXReader) ReadSqlRow(ctx context.Context) (sql.Row, error) {
 	outRow := xlsxr.rows[xlsxr.ind]
 	xlsxr.ind++
 
-	return outRow, nil
+	sqlRow := make(sql.Row, len(outRow))
+	for i, val := range outRow {
+		sqlRow[i] = val
+	}
+	return sqlRow, nil
 }

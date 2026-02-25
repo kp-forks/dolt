@@ -55,6 +55,11 @@ type GitAPI interface {
 	// It returns PathNotFoundError if |treePath| does not exist.
 	ListTree(ctx context.Context, commit OID, treePath string) ([]TreeEntry, error)
 
+	// ListTreeRecursive lists all entries under |commit|'s root tree recursively.
+	// Returned entries include both blobs and trees, and each entry Name is the full
+	// path from the root (e.g. "dir/file.txt", "dir/sub").
+	ListTreeRecursive(ctx context.Context, commit OID) ([]TreeEntry, error)
+
 	// CatFileType returns the git object type for |oid| (e.g. "blob", "tree", "commit").
 	CatFileType(ctx context.Context, oid OID) (string, error)
 
@@ -108,6 +113,18 @@ type GitAPI interface {
 	// Equivalent plumbing:
 	//   GIT_DIR=... git update-ref -m <msg> <ref> <new>
 	UpdateRef(ctx context.Context, ref string, newOID OID, msg string) error
+
+	// FetchRef fetches |srcRef| from |remote| and updates |dstRef| in the local repo.
+	// It is expected to force-update (tracking refs follow remote truth).
+	// Equivalent plumbing:
+	//   GIT_DIR=... git fetch <remote> +<srcRef>:<dstRef>
+	FetchRef(ctx context.Context, remote string, srcRef string, dstRef string) error
+
+	// PushRefWithLease pushes |srcRef| to |dstRef| on |remote|, but only if the remote's |dstRef|
+	// equals |expectedDstOID| (force-with-lease). If |expectedDstOID| is empty, it enforces that
+	// the remote |dstRef| is missing (bootstrap / create-if-missing semantics).
+	// Equivalent plumbing: GIT_DIR=... git push --force-with-lease=<dstRef>:<expectedDstOID> <remote> <srcRef>:<dstRef>
+	PushRefWithLease(ctx context.Context, remote string, srcRef string, dstRef string, expectedDstOID OID) error
 }
 
 // TreeEntry describes one entry in a git tree listing.

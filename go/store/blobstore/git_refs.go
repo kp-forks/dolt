@@ -14,14 +14,30 @@
 
 package blobstore
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
-// DoltDataRef is the local writable ref backing a git-object-db dolt blobstore.
-// It is the state that local operations mutate and (eventually) attempt to push.
+// DoltDataRef is the default remote ref backing a git-object-db dolt blobstore.
 const DoltDataRef = "refs/dolt/data"
 
-// DoltRemoteTrackingDataRef returns the remote-tracking ref for a named remote.
-// This ref represents the remote's DoltDataRef as of the last fetch.
-func DoltRemoteTrackingDataRef(remote string) string {
-	return fmt.Sprintf("refs/dolt/remotes/%s/data", remote)
+func trimRefsPrefix(ref string) string {
+	return strings.TrimPrefix(ref, "refs/")
+}
+
+// RemoteTrackingRef returns a UUID-owned remote-tracking ref for a GitBlobstore instance.
+// Each instance gets its own tracking ref to avoid concurrent git-fetch races
+// when multiple blobstore instances share the same cache repo.
+func RemoteTrackingRef(remoteName, remoteRef, uuid string) string {
+	return fmt.Sprintf("refs/dolt/remotes/%s/%s/%s", remoteName, trimRefsPrefix(remoteRef), uuid)
+}
+
+// OwnedLocalRef returns a UUID-owned local ref for a GitBlobstore instance.
+//
+// Note: these UUID refs can accumulate in the local repo over time. This is
+// intentional for now; callers that want best-effort cleanup can use
+// (*GitBlobstore).CleanupOwnedLocalRef.
+func OwnedLocalRef(remoteName, remoteRef, uuid string) string {
+	return fmt.Sprintf("refs/dolt/blobstore/%s/%s/%s", remoteName, trimRefsPrefix(remoteRef), uuid)
 }

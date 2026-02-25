@@ -19,28 +19,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/tealeg/xlsx"
 
 	"github.com/dolthub/dolt/go/libraries/doltcore/schema"
 )
 
 var ErrTableNameMatchSheetName = errors.New("table name must match excel sheet name.")
-
-func UnmarshalFromXLSX(path string) ([][][]string, error) {
-	data, err := openFile(path)
-
-	if err != nil {
-		return nil, err
-	}
-
-	dataSlice, err := data.ToSlice()
-	if err != nil {
-		return nil, err
-	}
-
-	return dataSlice, nil
-}
 
 func openFile(path string) (*xlsx.File, error) {
 	data, err := xlsx.OpenFile(path)
@@ -64,8 +48,8 @@ func openBinary(content []byte) (*xlsx.File, error) {
 	return data, nil
 }
 
-func decodeXLSXRows(xlData [][][]string, sch schema.Schema) ([]sql.Row, error) {
-	var rows []sql.Row
+func decodeXLSXRows(xlData [][][]string, sch schema.Schema) ([][]string, error) {
+	var rows [][]string
 
 	numSheets := len(xlData)
 	dataVals := xlData[0]
@@ -74,7 +58,7 @@ func decodeXLSXRows(xlData [][][]string, sch schema.Schema) ([]sql.Row, error) {
 
 	for j := 0; j < numSheets; j++ {
 		for i := 0; i < numRows; i++ {
-			var row sql.Row
+			var row []string
 			for k, v := range header {
 				if _, found := sch.GetAllCols().NameToCol[v]; !found {
 					return nil, errors.New(v + " is not a valid column")

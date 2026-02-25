@@ -318,6 +318,10 @@ func constructInterpolatedDoltMergeQuery(apr *argparser.ArgParseResults, cliCtx 
 		params = append(params, msg)
 	}
 
+	if apr.Contains(cli.SkipVerificationFlag) {
+		writeToBuffer("--skip-verification", false)
+	}
+
 	if !apr.Contains(cli.AbortParam) && !apr.Contains(cli.SquashParam) {
 		writeToBuffer("?", true)
 		params = append(params, apr.Arg(0))
@@ -387,7 +391,7 @@ func printMergeStats(fastForward bool,
 	}
 
 	if !apr.Contains(cli.NoCommitFlag) && !apr.Contains(cli.NoFFParam) && !fastForward && noConflicts {
-		commit, err := getCommitInfo(queryist, sqlCtx, "HEAD")
+		commit, err := getCommitInfo(sqlCtx, queryist, "HEAD")
 		if err != nil {
 			cli.Println("merge finished, but failed to get commit info")
 			cli.Println(err.Error())

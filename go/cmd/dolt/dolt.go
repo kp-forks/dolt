@@ -61,6 +61,7 @@ import (
 	"github.com/dolthub/dolt/go/libraries/utils/config"
 	"github.com/dolthub/dolt/go/libraries/utils/dynassert"
 	"github.com/dolthub/dolt/go/libraries/utils/filesys"
+	"github.com/dolthub/dolt/go/libraries/utils/gitauth"
 	"github.com/dolthub/dolt/go/store/nbs"
 	"github.com/dolthub/dolt/go/store/util/tempfiles"
 )
@@ -74,7 +75,6 @@ var commandsWithoutCliCtx = []cli.Command{
 	credcmds.Commands,
 	cvcmds.Commands,
 	commands.SendMetricsCmd{},
-	commands.MigrateCmd{},
 	indexcmds.Commands,
 	commands.ReadTablesCmd{},
 	commands.FilterBranchCmd{},
@@ -96,7 +96,6 @@ var commandsWithoutGlobalArgSupport = []cli.Command{
 	commands.InitCmd{},
 	commands.CloneCmd{},
 	docscmds.Commands,
-	commands.MigrateCmd{},
 	commands.ReadTablesCmd{},
 	commands.LoginCmd{},
 	credcmds.Commands,
@@ -213,6 +212,10 @@ func runMain() int {
 	args := os.Args[1:]
 
 	start := time.Now()
+
+	// Dolt must never block on interactive git credential prompts. Enforce a
+	// non-interactive git policy for the entire process (CLI + sql-server).
+	gitauth.DisableInteractivePrompts()
 
 	if len(args) == 0 {
 		doltCommand.PrintUsage("dolt")

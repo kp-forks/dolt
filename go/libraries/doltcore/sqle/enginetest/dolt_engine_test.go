@@ -490,25 +490,16 @@ func TestInsertIgnoreInto(t *testing.T) {
 
 // TODO: merge this into the above test when we remove old format
 func TestInsertDuplicateKeyKeyless(t *testing.T) {
-	if !types.IsFormat_DOLT(types.Format_Default) {
-		t.Skip()
-	}
 	enginetest.TestInsertDuplicateKeyKeyless(t, newDoltHarness(t))
 }
 
 // TODO: merge this into the above test when we remove old format
 func TestInsertDuplicateKeyKeylessPrepared(t *testing.T) {
-	if !types.IsFormat_DOLT(types.Format_Default) {
-		t.Skip()
-	}
 	enginetest.TestInsertDuplicateKeyKeylessPrepared(t, newDoltHarness(t))
 }
 
 // TODO: merge this into the above test when we remove old format
 func TestIgnoreIntoWithDuplicateUniqueKeyKeyless(t *testing.T) {
-	if !types.IsFormat_DOLT(types.Format_Default) {
-		t.Skip()
-	}
 	h := newDoltHarness(t)
 	defer h.Close()
 	enginetest.TestIgnoreIntoWithDuplicateUniqueKeyKeyless(t, h)
@@ -516,9 +507,6 @@ func TestIgnoreIntoWithDuplicateUniqueKeyKeyless(t *testing.T) {
 
 // TODO: merge this into the above test when we remove old format
 func TestIgnoreIntoWithDuplicateUniqueKeyKeylessPrepared(t *testing.T) {
-	if !types.IsFormat_DOLT(types.Format_Default) {
-		t.Skip()
-	}
 	enginetest.TestIgnoreIntoWithDuplicateUniqueKeyKeylessPrepared(t, newDoltHarness(t))
 }
 
@@ -601,17 +589,14 @@ func TestSpatialScriptsPrepared(t *testing.T) {
 }
 
 func TestSpatialIndexScripts(t *testing.T) {
-	skipOldFormat(t)
 	enginetest.TestSpatialIndexScripts(t, newDoltHarness(t))
 }
 
 func TestSpatialIndexScriptsPrepared(t *testing.T) {
-	skipOldFormat(t)
 	enginetest.TestSpatialIndexScriptsPrepared(t, newDoltHarness(t))
 }
 
 func TestSpatialIndexPlans(t *testing.T) {
-	skipOldFormat(t)
 	enginetest.TestSpatialIndexPlans(t, newDoltHarness(t))
 }
 
@@ -622,18 +607,12 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestConvert(t *testing.T) {
-	if types.IsFormat_LD(types.Format_Default) {
-		t.Skip("noms format has outdated type enforcement")
-	}
 	h := newDoltHarness(t)
 	defer h.Close()
 	enginetest.TestConvertPrepared(t, h)
 }
 
 func TestConvertPrepared(t *testing.T) {
-	if types.IsFormat_LD(types.Format_Default) {
-		t.Skip("noms format has outdated type enforcement")
-	}
 	h := newDoltHarness(t)
 	defer h.Close()
 	enginetest.TestConvertPrepared(t, h)
@@ -868,7 +847,6 @@ func TestCreateDatabase(t *testing.T) {
 }
 
 func TestBlobs(t *testing.T) {
-	skipOldFormat(t)
 	h := newDoltHarness(t)
 	defer h.Close()
 	enginetest.TestBlobs(t, h)
@@ -899,14 +877,11 @@ func TestVectorType(t *testing.T) {
 }
 
 func TestIndexPrefix(t *testing.T) {
-	skipOldFormat(t)
 	harness := newDoltHarness(t)
 	RunIndexPrefixTest(t, harness)
 }
 
 func TestBigBlobs(t *testing.T) {
-	skipOldFormat(t)
-
 	h := newDoltHarness(t)
 	RunBigBlobsTest(t, h)
 }
@@ -914,7 +889,6 @@ func TestBigBlobs(t *testing.T) {
 func TestAdaptiveEncoding(t *testing.T) {
 	defer func() { schema.UseAdaptiveEncoding = false }()
 	schema.UseAdaptiveEncoding = true
-	skipOldFormat(t)
 
 	RunTestAdaptiveEncoding(t, newDoltHarness(t), AdaptiveEncodingTestType_Blob, AdaptiveEncodingTestPurpose_Representation)
 	RunTestAdaptiveEncoding(t, newDoltHarness(t), AdaptiveEncodingTestType_Blob, AdaptiveEncodingTestPurpose_Correctness)
@@ -956,9 +930,6 @@ func TestForeignKeyBranchesPrepared(t *testing.T) {
 }
 
 func TestFulltextIndexes(t *testing.T) {
-	if !types.IsFormat_DOLT(types.Format_Default) {
-		t.Skip("FULLTEXT is not supported on the old format")
-	}
 	if runtime.GOOS == "windows" && os.Getenv("CI") != "" {
 		t.Skip("For some reason, this is flaky only on Windows CI.")
 	}
@@ -1214,6 +1185,51 @@ func TestConcurrentTransactions(t *testing.T) {
 	enginetest.TestConcurrentTransactions(t, h)
 }
 
+func TestLegacySelectScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacySelectScripts(t, harness)
+}
+
+func TestLegacyJoinScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacyJoinScripts(t, harness)
+}
+
+func TestLegacyInsertScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacyInsertScripts(t, harness)
+}
+
+func TestLegacyUpdateScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacyUpdateScripts(t, harness)
+}
+
+func TestLegacyDeleteScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacyDeleteScripts(t, harness)
+}
+
+func TestLegacyReplaceScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacyReplaceScripts(t, harness)
+}
+
+func TestLegacyCreateTableScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacyCreateTableScripts(t, harness)
+}
+
+func TestLegacyDropTableScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacyDropTableScripts(t, harness)
+}
+
+func TestLegacyIndexScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunLegacyIndexScripts(t, harness)
+}
+
 func TestDoltScripts(t *testing.T) {
 	harness := newDoltEnginetestHarness(t)
 	RunDoltScriptsTest(t, harness)
@@ -1242,6 +1258,11 @@ func TestDoltRevisionDbScriptsPrepared(t *testing.T) {
 func TestDoltDdlScripts(t *testing.T) {
 	harness := newDoltEnginetestHarness(t)
 	RunDoltDdlScripts(t, harness)
+}
+
+func TestDoltCommitVerificationScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunDoltCommitVerificationScripts(t, harness)
 }
 
 func TestBrokenDdlScripts(t *testing.T) {
@@ -1344,21 +1365,6 @@ func TestDoltPreviewMergeConflicts(t *testing.T) {
 func TestDoltPreviewMergeConflictsPrepared(t *testing.T) {
 	h := newDoltEnginetestHarness(t)
 	RunDoltPreviewMergeConflictsPreparedTests(t, h)
-}
-
-// these tests are temporary while there is a difference between the old format
-// and new format merge behaviors.
-func TestOldFormatMergeConflictsAndCVs(t *testing.T) {
-	if types.IsFormat_DOLT(types.Format_Default) {
-		t.Skip()
-	}
-	for _, script := range OldFormatMergeConflictsAndCVsScripts {
-		func() {
-			h := newDoltHarness(t)
-			defer h.Close()
-			enginetest.TestScript(t, h, script)
-		}()
-	}
 }
 
 func TestDoltReset(t *testing.T) {
@@ -1944,21 +1950,18 @@ func TestPreparedStatements(t *testing.T) {
 }
 
 func TestCharsetCollationEngine(t *testing.T) {
-	skipOldFormat(t)
 	h := newDoltHarness(t)
 	defer h.Close()
 	enginetest.TestCharsetCollationEngine(t, h)
 }
 
 func TestCharsetCollationWire(t *testing.T) {
-	skipOldFormat(t)
 	harness := newDoltHarness(t)
 	defer harness.Close()
 	enginetest.TestCharsetCollationWire(t, harness, newSessionBuilder(harness))
 }
 
 func TestDatabaseCollationWire(t *testing.T) {
-	skipOldFormat(t)
 	harness := newDoltHarness(t)
 	defer harness.Close()
 	enginetest.TestDatabaseCollationWire(t, harness, newSessionBuilder(harness))

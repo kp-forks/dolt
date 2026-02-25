@@ -29,10 +29,19 @@ func TestGitBlobstore_Put_ChunkedWritesTreeParts(t *testing.T) {
 	requireGitOnPath(t)
 
 	ctx := context.Background()
-	repo, err := gitrepo.InitBare(ctx, t.TempDir()+"/repo.git")
+	remoteRepo, err := gitrepo.InitBare(ctx, t.TempDir()+"/remote.git")
+	require.NoError(t, err)
+	_, err = remoteRepo.SetRefToTree(ctx, DoltDataRef, nil, "seed empty")
 	require.NoError(t, err)
 
-	bs, err := NewGitBlobstoreWithOptions(repo.GitDir, DoltDataRef, GitBlobstoreOptions{
+	localRepo, err := gitrepo.InitBare(ctx, t.TempDir()+"/local.git")
+	require.NoError(t, err)
+	localRunner, err := git.NewRunner(localRepo.GitDir)
+	require.NoError(t, err)
+	_, err = localRunner.Run(ctx, git.RunOptions{}, "remote", "add", "origin", remoteRepo.GitDir)
+	require.NoError(t, err)
+
+	bs, err := NewGitBlobstoreWithOptions(localRepo.GitDir, DoltDataRef, GitBlobstoreOptions{
 		Identity:    testIdentity(),
 		MaxPartSize: 3,
 	})
@@ -41,13 +50,18 @@ func TestGitBlobstore_Put_ChunkedWritesTreeParts(t *testing.T) {
 	want := []byte("abcdefghij") // 10 bytes -> 3,3,3,1
 	ver, err := bs.Put(ctx, "big", int64(len(want)), bytes.NewReader(want))
 	require.NoError(t, err)
+	require.NotEmpty(t, ver)
 
-	got, ver2, err := GetBytes(ctx, bs, "big", AllRange)
+	// Non-manifest Put is deferred; data should be readable from cache/local git objects.
+	got, _, err := GetBytes(ctx, bs, "big", AllRange)
 	require.NoError(t, err)
-	require.Equal(t, ver, ver2)
 	require.Equal(t, want, got)
 
-	runner, err := git.NewRunner(repo.GitDir)
+	// Flush deferred writes via CheckAndPut("manifest").
+	_, err = bs.CheckAndPut(ctx, "", "manifest", 3, bytes.NewReader([]byte("xxx\n")))
+	require.NoError(t, err)
+
+	runner, err := git.NewRunner(remoteRepo.GitDir)
 	require.NoError(t, err)
 	api := git.NewGitAPIImpl(runner)
 
@@ -62,40 +76,43 @@ func TestGitBlobstore_Put_ChunkedWritesTreeParts(t *testing.T) {
 	entries, err := api.ListTree(ctx, head, "big")
 	require.NoError(t, err)
 	require.Len(t, entries, 4)
-	require.Equal(t, "00000001", entries[0].Name)
-	require.Equal(t, "00000004", entries[3].Name)
+	require.Equal(t, "0001", entries[0].Name)
+	require.Equal(t, "0004", entries[3].Name)
 }
 
 func TestGitBlobstore_Put_IdempotentDoesNotChangeExistingRepresentation(t *testing.T) {
 	requireGitOnPath(t)
 
 	ctx := context.Background()
-	repo, err := gitrepo.InitBare(ctx, t.TempDir()+"/repo.git")
+	remoteRepo, err := gitrepo.InitBare(ctx, t.TempDir()+"/remote.git")
+	require.NoError(t, err)
+	_, err = remoteRepo.SetRefToTree(ctx, DoltDataRef, nil, "seed empty")
 	require.NoError(t, err)
 
-	bs, err := NewGitBlobstoreWithOptions(repo.GitDir, DoltDataRef, GitBlobstoreOptions{
+	localRepo, err := gitrepo.InitBare(ctx, t.TempDir()+"/local.git")
+	require.NoError(t, err)
+	localRunner, err := git.NewRunner(localRepo.GitDir)
+	require.NoError(t, err)
+	_, err = localRunner.Run(ctx, git.RunOptions{}, "remote", "add", "origin", remoteRepo.GitDir)
+	require.NoError(t, err)
+
+	bs, err := NewGitBlobstoreWithOptions(localRepo.GitDir, DoltDataRef, GitBlobstoreOptions{
 		Identity:    testIdentity(),
 		MaxPartSize: 3,
 	})
 	require.NoError(t, err)
 
-	runner, err := git.NewRunner(repo.GitDir)
+	runner, err := git.NewRunner(remoteRepo.GitDir)
 	require.NoError(t, err)
 	api := git.NewGitAPIImpl(runner)
 
-	// blob stays blob (even if the caller would have triggered chunked mode)
+	// blob stays blob (even if the caller would have triggered chunked mode).
+	// Non-manifest Put is deferred; idempotent re-Put should return same version from cache.
 	verBlob, err := bs.Put(ctx, "k", 2, bytes.NewReader([]byte("hi")))
 	require.NoError(t, err)
 	verNoop, err := bs.Put(ctx, "k", 10, putShouldNotRead{})
 	require.NoError(t, err)
 	require.Equal(t, verBlob, verNoop)
-
-	head1, ok, err := api.TryResolveRefCommit(ctx, DoltDataRef)
-	require.NoError(t, err)
-	require.True(t, ok)
-	_, typ, err := api.ResolvePathObject(ctx, head1, "k")
-	require.NoError(t, err)
-	require.Equal(t, git.ObjectTypeBlob, typ)
 
 	got, _, err := GetBytes(ctx, bs, "k", AllRange)
 	require.NoError(t, err)
@@ -104,13 +121,6 @@ func TestGitBlobstore_Put_IdempotentDoesNotChangeExistingRepresentation(t *testi
 	// tree stays tree
 	verTree, err := bs.Put(ctx, "ktree", 10, bytes.NewReader([]byte("abcdefghij")))
 	require.NoError(t, err)
-	head2, ok, err := api.TryResolveRefCommit(ctx, DoltDataRef)
-	require.NoError(t, err)
-	require.True(t, ok)
-	_, typ, err = api.ResolvePathObject(ctx, head2, "ktree")
-	require.NoError(t, err)
-	require.Equal(t, git.ObjectTypeTree, typ)
-
 	verTreeNoop, err := bs.Put(ctx, "ktree", 2, putShouldNotRead{})
 	require.NoError(t, err)
 	require.Equal(t, verTree, verTreeNoop)
@@ -118,4 +128,20 @@ func TestGitBlobstore_Put_IdempotentDoesNotChangeExistingRepresentation(t *testi
 	got, _, err = GetBytes(ctx, bs, "ktree", AllRange)
 	require.NoError(t, err)
 	require.Equal(t, []byte("abcdefghij"), got)
+
+	// Flush deferred writes and verify remote state.
+	_, err = bs.CheckAndPut(ctx, "", "manifest", 3, bytes.NewReader([]byte("xxx\n")))
+	require.NoError(t, err)
+
+	head, ok, err := api.TryResolveRefCommit(ctx, DoltDataRef)
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	_, typ, err := api.ResolvePathObject(ctx, head, "k")
+	require.NoError(t, err)
+	require.Equal(t, git.ObjectTypeBlob, typ)
+
+	_, typ, err = api.ResolvePathObject(ctx, head, "ktree")
+	require.NoError(t, err)
+	require.Equal(t, git.ObjectTypeTree, typ)
 }

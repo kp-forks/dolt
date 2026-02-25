@@ -23,7 +23,6 @@ import (
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/expression"
 	"github.com/dolthub/go-mysql-server/sql/plan"
-	"github.com/dolthub/go-mysql-server/sql/transform"
 	"github.com/dolthub/go-mysql-server/sql/types"
 
 	"github.com/dolthub/dolt/go/libraries/doltcore/diff"
@@ -203,10 +202,19 @@ func (dt *UnscopedDiffTable) newWorkingSetRowItr(ctx *sql.Context) (sql.RowIter,
 		return nil, err
 	}
 
+	// Get ignore patterns to filter out ignored unstaged new tables
+	schemas := []string{doltdb.DefaultSchemaName}
+	ignorePatternMap, err := doltdb.GetIgnoredTablePatterns(ctx, roots, schemas)
+	if err != nil {
+		return nil, err
+	}
+	patterns := ignorePatternMap[doltdb.DefaultSchemaName]
+
 	var ri sql.RowIter
 	ri = &doltDiffWorkingSetRowItr{
 		stagedTableDeltas:   staged,
 		unstagedTableDeltas: unstaged,
+		ignorePatterns:      patterns,
 	}
 
 	for _, filter := range dt.partitionFilters {
@@ -223,40 +231,57 @@ type doltDiffWorkingSetRowItr struct {
 	unstagedTableDeltas []diff.TableDelta
 	stagedIndex         int
 	unstagedIndex       int
+	ignorePatterns      doltdb.IgnorePatterns
 }
 
 func (d *doltDiffWorkingSetRowItr) Next(ctx *sql.Context) (sql.Row, error) {
-	var changeSet string
-	var tableDelta diff.TableDelta
-	if d.stagedIndex < len(d.stagedTableDeltas) {
-		changeSet = "STAGED"
-		tableDelta = d.stagedTableDeltas[d.stagedIndex]
-		d.stagedIndex++
-	} else if d.unstagedIndex < len(d.unstagedTableDeltas) {
-		changeSet = "WORKING"
-		tableDelta = d.unstagedTableDeltas[d.unstagedIndex]
-		d.unstagedIndex++
-	} else {
-		return nil, io.EOF
+	for {
+		var changeSet string
+		var tableDelta diff.TableDelta
+		if d.stagedIndex < len(d.stagedTableDeltas) {
+			changeSet = "STAGED"
+			tableDelta = d.stagedTableDeltas[d.stagedIndex]
+			d.stagedIndex++
+		} else if d.unstagedIndex < len(d.unstagedTableDeltas) {
+			changeSet = "WORKING"
+			tableDelta = d.unstagedTableDeltas[d.unstagedIndex]
+			d.unstagedIndex++
+		} else {
+			return nil, io.EOF
+		}
+
+		// Skip ignored unstaged new tables (same as Git behavior:
+		// only untracked/new tables can be ignored).
+		if changeSet == "WORKING" && tableDelta.IsAdd() {
+			tblName := doltdb.TableName{Name: tableDelta.CurName()}
+			result, err := d.ignorePatterns.IsTableNameIgnored(tblName)
+			// If a table name has conflicting ignore rules, don't ignore it.
+			if err != nil && doltdb.AsDoltIgnoreInConflict(err) == nil {
+				return nil, err
+			}
+			if result == doltdb.Ignore {
+				continue
+			}
+		}
+
+		change, err := tableDelta.GetSummary(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		sqlRow := sql.NewRow(
+			changeSet,
+			change.TableName.String(),
+			nil, // committer
+			nil, // email
+			nil, // date
+			nil, // message
+			change.DataChange,
+			change.SchemaChange,
+		)
+
+		return sqlRow, nil
 	}
-
-	change, err := tableDelta.GetSummary(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	sqlRow := sql.NewRow(
-		changeSet,
-		change.TableName.String(),
-		nil, // committer
-		nil, // email
-		nil, // date
-		nil, // message
-		change.DataChange,
-		change.SchemaChange,
-	)
-
-	return sqlRow, nil
 }
 
 func (d *doltDiffWorkingSetRowItr) Close(c *sql.Context) error {
@@ -460,64 +485,6 @@ func (itr *doltDiffCommitHistoryRowItr) calculateTableChanges(ctx context.Contex
 // Close closes the iterator.
 func (itr *doltDiffCommitHistoryRowItr) Close(*sql.Context) error {
 	return nil
-}
-
-// isTableDataEmpty return true if the table does not contain any data
-func isTableDataEmpty(ctx *sql.Context, table *doltdb.Table) (bool, error) {
-	rowData, err := table.GetRowData(ctx)
-	if err != nil {
-		return false, err
-	}
-
-	return rowData.Empty()
-}
-
-// commitFilterForDiffTableFilterExprs returns CommitFilter used for CommitItr.
-func commitFilterForDiffTableFilterExprs(filters []sql.Expression) (doltdb.CommitFilter[*sql.Context], error) {
-	filters = transformFilters(filters...)
-
-	return func(ctx *sql.Context, h hash.Hash, optCmt *doltdb.OptionalCommit) (filterOut bool, err error) {
-		cm, ok := optCmt.ToCommit()
-		if !ok {
-			return false, doltdb.ErrGhostCommitEncountered
-		}
-
-		meta, err := cm.GetCommitMeta(ctx)
-		if err != nil {
-			return false, err
-		}
-		for _, filter := range filters {
-			res, err := filter.Eval(ctx, sql.Row{h.String(), meta.Name, meta.Time()})
-			if err != nil {
-				return false, err
-			}
-			b, ok := res.(bool)
-			if ok && !b {
-				return true, nil
-			}
-		}
-
-		return false, err
-	}, nil
-}
-
-// transformFilters return filter expressions with index specified for rows used in CommitFilter.
-func transformFilters(filters ...sql.Expression) []sql.Expression {
-	for i := range filters {
-		filters[i], _, _ = transform.Expr(filters[i], func(e sql.Expression) (sql.Expression, transform.TreeIdentity, error) {
-			gf, ok := e.(*expression.GetField)
-			if !ok {
-				return e, transform.SameTree, nil
-			}
-			switch gf.Name() {
-			case commitHashCol:
-				return gf.WithIndex(0), transform.NewTree, nil
-			default:
-				return gf, transform.SameTree, nil
-			}
-		})
-	}
-	return filters
 }
 
 func getCommitsFromCommitHashEquality(ctx *sql.Context, ddb *doltdb.DoltDB, filters []sql.Expression) ([]*doltdb.Commit, bool) {

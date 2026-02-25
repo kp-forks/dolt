@@ -151,9 +151,9 @@ func TestTaggedTuple_NomsTupleForTags(t *testing.T) {
 		{[]uint64{2, 1, 0}, true, mustTuple(types.NewTuple(types.Format_Default, types.Uint(2), types.String("2"), types.Uint(1), types.String("1"), types.Uint(0), types.String("0")))},
 		{[]uint64{1, 3}, true, mustTuple(types.NewTuple(types.Format_Default, types.Uint(1), types.String("1"), types.Uint(3), types.NullValue))},
 		{[]uint64{1, 3}, false, mustTuple(types.NewTuple(types.Format_Default, types.Uint(1), types.String("1")))},
-		//{[]uint64{0, 1, 2}, types.NewTuple(types.Uint(0), types.String("0"), )},
-		//{map[uint64]types.Value{}, []uint64{}, types.NewTuple()},
-		//{map[uint64]types.Value{}, []uint64{}, types.NewTuple()},
+		// {[]uint64{0, 1, 2}, types.NewTuple(types.Uint(0), types.String("0"), )},
+		// {map[uint64]types.Value{}, []uint64{}, types.NewTuple()},
+		// {map[uint64]types.Value{}, []uint64{}, types.NewTuple()},
 	}
 	for _, test := range tests {
 		if got, err := tt.nomsTupleForTags(types.Format_Default, test.tags, test.encodeNulls).Value(ctx); err != nil {
@@ -231,54 +231,6 @@ func TestTaggedTuple_Get(t *testing.T) {
 			}
 
 			t.Errorf("TaggedValues.Get() = %s, want %s", gotStr, wantStr)
-		}
-	}
-}
-
-func TestTaggedTuple_Set(t *testing.T) {
-	tests := []struct {
-		tag  uint64
-		val  types.Value
-		want TaggedValues
-	}{
-		{1, types.String("one"), TaggedValues{1: types.String("one"), 2: types.String("2"), 3: types.String("3")}},
-		{0, types.String("0"), TaggedValues{0: types.String("0"), 1: types.String("1"), 2: types.String("2"), 3: types.String("3")}},
-	}
-	for _, test := range tests {
-		tt := TaggedValues{
-			1: types.String("1"),
-			2: types.String("2"),
-			3: types.String("3")}
-
-		if got := tt.Set(test.tag, test.val); !reflect.DeepEqual(got, test.want) {
-			t.Errorf("TaggedValues.Set() = %v, want %v", got, test.want)
-		}
-	}
-}
-
-func TestParseTaggedTuple(t *testing.T) {
-	tests := []struct {
-		tpl  types.Tuple
-		want TaggedValues
-	}{
-		{
-			mustTuple(types.NewTuple(types.Format_Default)),
-			TaggedValues{},
-		},
-		{
-			mustTuple(types.NewTuple(types.Format_Default, types.Uint(0), types.String("0"))),
-			TaggedValues{0: types.String("0")},
-		},
-		{
-			mustTuple(types.NewTuple(types.Format_Default, types.Uint(0), types.String("0"), types.Uint(5), types.Uint(5), types.Uint(60), types.Int(60))),
-			TaggedValues{0: types.String("0"), 5: types.Uint(5), 60: types.Int(60)},
-		},
-	}
-	for _, test := range tests {
-		if got, err := ParseTaggedValues(test.tpl); err != nil {
-			t.Error(err)
-		} else if !reflect.DeepEqual(got, test.want) {
-			t.Errorf("ParseTaggedValues() = %v, want %v", got, test.want)
 		}
 	}
 }

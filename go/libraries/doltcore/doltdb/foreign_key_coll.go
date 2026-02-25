@@ -23,7 +23,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dolthub/dolt/go/libraries/doltcore/row"
 	"github.com/dolthub/dolt/go/libraries/doltcore/schema"
 	"github.com/dolthub/dolt/go/libraries/utils/set"
 	"github.com/dolthub/dolt/go/store/hash"
@@ -36,44 +35,6 @@ import (
 type ForeignKeyCollection struct {
 	foreignKeys map[string]ForeignKey
 }
-
-// ForeignKeyViolationError represents a set of foreign key violations for a table.
-type ForeignKeyViolationError struct {
-	ForeignKey    ForeignKey
-	Schema        schema.Schema
-	ViolationRows []row.Row
-}
-
-// Error implements the interface error.
-func (f *ForeignKeyViolationError) Error() string {
-	if len(f.ViolationRows) == 0 {
-		return "no violations were found, should not be an error"
-	}
-	sb := strings.Builder{}
-	const earlyTerminationLimit = 50
-	terminatedEarly := false
-	for i := range f.ViolationRows {
-		if i >= earlyTerminationLimit {
-			terminatedEarly = true
-			break
-		}
-		key, _ := f.ViolationRows[i].NomsMapKey(f.Schema).Value(context.Background())
-		val, _ := f.ViolationRows[i].NomsMapValue(f.Schema).Value(context.Background())
-		valSlice, _ := val.(types.Tuple).AsSlice()
-		all, _ := key.(types.Tuple).Append(valSlice...)
-		str, _ := types.EncodedValue(context.Background(), all)
-		sb.WriteRune('\n')
-		sb.WriteString(str)
-	}
-	if terminatedEarly {
-		return fmt.Sprintf("foreign key violations on `%s`.`%s`:%s\n%d more violations are not being displayed",
-			f.ForeignKey.Name, f.ForeignKey.TableName, sb.String(), len(f.ViolationRows)-earlyTerminationLimit)
-	} else {
-		return fmt.Sprintf("foreign key violations on `%s`.`%s`:%s", f.ForeignKey.Name, f.ForeignKey.TableName, sb.String())
-	}
-}
-
-var _ error = (*ForeignKeyViolationError)(nil)
 
 type ForeignKeyReferentialAction byte
 

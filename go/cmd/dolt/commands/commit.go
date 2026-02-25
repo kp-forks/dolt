@@ -173,7 +173,7 @@ func performCommit(ctx context.Context, commandStr string, args []string, cliCtx
 		return 0, true
 	}
 
-	commit, err := getCommitInfo(queryist.Queryist, queryist.Context, "HEAD")
+	commit, err := getCommitInfo(queryist.Context, queryist.Queryist, "HEAD")
 	if cli.ExecuteWithStdioRestored != nil {
 		cli.ExecuteWithStdioRestored(func() {
 			pager := outputpager.Start()
@@ -264,6 +264,10 @@ func constructParametrizedDoltCommitQuery(msg string, apr *argparser.ArgParseRes
 
 	if apr.Contains(cli.SkipEmptyFlag) {
 		writeToBuffer("--skip-empty")
+	}
+
+	if apr.Contains(cli.SkipVerificationFlag) {
+		writeToBuffer("--skip-verification")
 	}
 
 	cfgSign := cliCtx.Config().GetStringOrDefault("sqlserver.global.gpgsign", "")

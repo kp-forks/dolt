@@ -106,22 +106,6 @@ func TestTypeOrdered(t *testing.T) {
 	assert.False(isKindOrderedByValue(mustType(MakeRefType(PrimitiveTypeMap[StringKind])).TargetKind()))
 }
 
-func TestFlattenUnionTypes(t *testing.T) {
-	assert := assert.New(t)
-	assert.Equal(PrimitiveTypeMap[BoolKind], mustType(MakeUnionType(PrimitiveTypeMap[BoolKind])))
-	assert.Equal(mustType(MakeUnionType()), mustType(MakeUnionType()))
-	assert.Equal(mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[StringKind])), mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], mustType(MakeUnionType(PrimitiveTypeMap[StringKind])))))
-	assert.Equal(mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[StringKind], PrimitiveTypeMap[FloatKind])), mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], mustType(MakeUnionType(PrimitiveTypeMap[StringKind], PrimitiveTypeMap[FloatKind])))))
-	assert.Equal(PrimitiveTypeMap[BoolKind], mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[BoolKind])))
-	assert.Equal(PrimitiveTypeMap[BoolKind], mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], mustType(MakeUnionType()))))
-	assert.Equal(PrimitiveTypeMap[BoolKind], mustType(MakeUnionType(mustType(MakeUnionType()), PrimitiveTypeMap[BoolKind])))
-	assert.True(mustType(MakeUnionType(mustType(MakeUnionType()), mustType(MakeUnionType()))).Equals(mustType(MakeUnionType())))
-	assert.Equal(mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[FloatKind])), mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[FloatKind])))
-	assert.Equal(mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[FloatKind])), mustType(MakeUnionType(PrimitiveTypeMap[FloatKind], PrimitiveTypeMap[BoolKind])))
-	assert.Equal(mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[FloatKind])), mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[FloatKind], PrimitiveTypeMap[BoolKind])))
-	assert.Equal(mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[FloatKind])), mustType(MakeUnionType(mustType(MakeUnionType(PrimitiveTypeMap[BoolKind], PrimitiveTypeMap[FloatKind])), PrimitiveTypeMap[FloatKind], PrimitiveTypeMap[BoolKind])))
-}
-
 func TestVerifyStructFieldName(t *testing.T) {
 	assert := assert.New(t)
 

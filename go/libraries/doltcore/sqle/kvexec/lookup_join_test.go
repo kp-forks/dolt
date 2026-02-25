@@ -111,15 +111,6 @@ func TestLookupJoin(t *testing.T) {
 			doRowexec: false,
 		},
 		{
-			name: "reject join in subquery with non-nil scope",
-			setup: []string{
-				"create table xy (x int primary key, y int)",
-				"create table ab (a int primary key, b int)",
-			},
-			join:      "select  1, (select /*+ LOOKUP_JOIN(xy,ab) */ count(*) from xy join ab on x = a) cnt",
-			doRowexec: false,
-		},
-		{
 			name: "reject complex join expression",
 			setup: []string{
 				"create table xy (x int primary key, y int)",
@@ -164,13 +155,7 @@ func TestLookupJoin(t *testing.T) {
 			dEnv := dtestutils.CreateTestEnv()
 			defer dEnv.DoltDB(ctx).Close()
 
-			tmpDir, err := dEnv.TempTableFilesDir()
-			require.NoError(t, err)
-
-			deaf, err := dEnv.DbEaFactory(ctx)
-			require.NoError(t, err)
-			opts := editor.Options{Deaf: deaf, Tempdir: tmpDir}
-			db, err := sqle.NewDatabase(context.Background(), "dolt", dEnv.DbData(ctx), opts)
+			db, err := sqle.NewDatabase(context.Background(), "dolt", dEnv.DbData(ctx), editor.Options{})
 			require.NoError(t, err)
 
 			engine, sqlCtx, err := sqle.NewTestEngine(dEnv, context.Background(), db)

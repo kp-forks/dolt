@@ -4337,7 +4337,8 @@ var MergeArtifactsScripts = []queries.ScriptTest{
 		},
 	},
 	{
-		Name: "Multiple foreign key violations for a given row not supported",
+		// https://github.com/dolthub/dolt/issues/6329
+		Name: "Multiple foreign key violations for a given row reported",
 		SetUpScript: []string{
 			"SET dolt_force_transaction_commit = on;",
 			`
@@ -4370,8 +4371,12 @@ var MergeArtifactsScripts = []queries.ScriptTest{
 		},
 		Assertions: []queries.ScriptTestAssertion{
 			{
-				Query:          "CALL DOLT_MERGE('right');",
-				ExpectedErrStr: "error storing constraint violation for primary key (( 1 )): another violation already exists\nnew violation: {\"Columns\":[\"col1\"],\"ForeignKey\":\"child_ibfk_1\",\"Index\":\"col1\",\"OnDelete\":\"RESTRICT\",\"OnUpdate\":\"RESTRICT\",\"ReferencedColumns\":[\"col1\"],\"ReferencedIndex\":\"par_col1_idx\",\"ReferencedTable\":\"parent\",\"Table\":\"child\"} old violation: ({\"Columns\":[\"col2\"],\"ForeignKey\":\"child_ibfk_2\",\"Index\":\"col2\",\"OnDelete\":\"RESTRICT\",\"OnUpdate\":\"RESTRICT\",\"ReferencedColumns\":[\"col2\"],\"ReferencedIndex\":\"par_col2_idx\",\"ReferencedTable\":\"parent\",\"Table\":\"child\"})",
+				Query:    "CALL DOLT_MERGE('right');",
+				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
+			},
+			{
+				Query:    "SELECT * from dolt_constraint_violations;",
+				Expected: []sql.Row{{"child", uint64(2)}},
 			},
 			{
 				Query:    "SELECT * from parent;",
@@ -4379,12 +4384,13 @@ var MergeArtifactsScripts = []queries.ScriptTest{
 			},
 			{
 				Query:    "SELECT * from child;",
-				Expected: []sql.Row{},
+				Expected: []sql.Row{{1, 1, 1}},
 			},
 		},
 	},
 	{
-		Name: "Multiple unique key violations for a given row not supported",
+		// https://github.com/dolthub/dolt/issues/6329
+		Name: "Multiple unique key violations for a given row reported",
 		SetUpScript: []string{
 			"SET dolt_force_transaction_commit = on;",
 			"CREATE table t (pk int PRIMARY KEY, col1 int UNIQUE, col2 int UNIQUE);",
@@ -4401,12 +4407,16 @@ var MergeArtifactsScripts = []queries.ScriptTest{
 		},
 		Assertions: []queries.ScriptTestAssertion{
 			{
-				Query:          "CALL DOLT_MERGE('right');",
-				ExpectedErrStr: "error storing constraint violation for primary key (( 1 )): another violation already exists\nnew violation: {\"Columns\":[\"col1\"],\"Name\":\"col1\"} old violation: ({\"Columns\":[\"col2\"],\"Name\":\"col2\"})",
+				Query:    "CALL DOLT_MERGE('right');",
+				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
+			},
+			{
+				Query:    "SELECT * from dolt_constraint_violations;",
+				Expected: []sql.Row{{"t", uint64(4)}},
 			},
 			{
 				Query:    "SELECT * from t;",
-				Expected: []sql.Row{{1, 1, 1}},
+				Expected: []sql.Row{{1, 1, 1}, {2, 1, 1}},
 			},
 		},
 	},
@@ -4517,6 +4527,253 @@ var MergeArtifactsScripts = []queries.ScriptTest{
 			},
 		},
 	},
+	{
+		// https://github.com/dolthub/dolt/issues/6329
+		Name: "violation system table supports multiple violations per row",
+		SetUpScript: []string{
+			"SET dolt_force_transaction_commit = on;",
+			"CREATE TABLE t (pk int primary key, a int not null, b int not null, unique key ua (a), unique key ub (b));",
+			"INSERT INTO t VALUES (1, 10, 20);",
+			"CALL DOLT_COMMIT('-Am', 'init');",
+			"CALL DOLT_BRANCH('other');",
+			"UPDATE t SET a = 0, b = 0;",
+			"CALL DOLT_COMMIT('-am', 'main: row 1 -> (0,0)');",
+			"CALL DOLT_CHECKOUT('other');",
+			"INSERT INTO t VALUES (2, 0, 0);",
+			"CALL DOLT_COMMIT('-am', 'other: add row (2,0,0)');",
+			"CALL DOLT_CHECKOUT('main');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query:    "CALL DOLT_MERGE('other');",
+				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
+			},
+			{
+				Query:    "SELECT * FROM dolt_constraint_violations;",
+				Expected: []sql.Row{{"t", uint64(4)}},
+			},
+			{
+				Query:    "SELECT COUNT(*) FROM dolt_constraint_violations_t;",
+				Expected: []sql.Row{{4}},
+			},
+			{
+				Query: "SELECT from_root_ish, violation_type, pk, a, b FROM dolt_constraint_violations_t ORDER BY pk, CAST(violation_info AS CHAR);",
+				Expected: []sql.Row{
+					{doltCommit, "unique index", 1, 0, 0},
+					{doltCommit, "unique index", 1, 0, 0},
+					{doltCommit, "unique index", 2, 0, 0},
+					{doltCommit, "unique index", 2, 0, 0},
+				},
+			},
+			{
+				Query:    "SELECT COUNT(*) FROM dolt_constraint_violations_t WHERE pk = 1;",
+				Expected: []sql.Row{{2}},
+			},
+			{
+				Query:    "SELECT COUNT(*) FROM dolt_constraint_violations_t WHERE pk = 2;",
+				Expected: []sql.Row{{2}},
+			},
+		},
+	},
+	{
+		// Uses JSON_EXTRACT for single-violation delete; MySQL-only (Doltgres uses different JSON syntax).
+		Dialect: "mysql",
+		Name:    "clearing constraint violations (MySQL): single delete, bulk delete, and commit",
+		SetUpScript: []string{
+			"SET dolt_force_transaction_commit = on;",
+			"CREATE TABLE t (pk int primary key, a int not null, b int not null, unique key ua (a), unique key ub (b));",
+			"INSERT INTO t VALUES (1, 10, 20);",
+			"CALL DOLT_COMMIT('-Am', 'init');",
+			"CALL DOLT_BRANCH('other');",
+			"UPDATE t SET a = 0, b = 0;",
+			"CALL DOLT_COMMIT('-am', 'main: row 1 -> (0,0)');",
+			"CALL DOLT_CHECKOUT('other');",
+			"INSERT INTO t VALUES (2, 0, 0);",
+			"CALL DOLT_COMMIT('-am', 'other: add row (2,0,0)');",
+			"CALL DOLT_CHECKOUT('main');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query:    "CALL DOLT_MERGE('other');",
+				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
+			},
+			{
+				Query:    "SELECT COUNT(*) FROM dolt_constraint_violations_t;",
+				Expected: []sql.Row{{4}},
+			},
+			{
+				Query:    "DELETE FROM dolt_constraint_violations_t WHERE pk = 1 AND violation_type = 'unique index' AND JSON_EXTRACT(violation_info, '$.Name') = 'ua';",
+				Expected: []sql.Row{{types.NewOkResult(1)}},
+			},
+			{
+				Query:    "SELECT COUNT(*) FROM dolt_constraint_violations_t;",
+				Expected: []sql.Row{{3}},
+			},
+			{
+				Query:    "DELETE FROM dolt_constraint_violations_t WHERE pk = 1;",
+				Expected: []sql.Row{{types.NewOkResult(1)}},
+			},
+			{
+				Query:    "SELECT COUNT(*) FROM dolt_constraint_violations_t WHERE pk = 1;",
+				Expected: []sql.Row{{0}},
+			},
+			{
+				Query:    "SELECT COUNT(*) FROM dolt_constraint_violations_t WHERE pk = 2;",
+				Expected: []sql.Row{{2}},
+			},
+			{
+				Query:    "UPDATE t SET a = 1, b = 2 WHERE pk = 2;",
+				Expected: []sql.Row{{types.OkResult{RowsAffected: uint64(1), Info: plan.UpdateInfo{Matched: 1, Updated: 1}}}},
+			},
+			{
+				Query:    "DELETE FROM dolt_constraint_violations_t WHERE pk = 2;",
+				Expected: []sql.Row{{types.NewOkResult(2)}},
+			},
+			{
+				Query:    "SELECT COUNT(*) FROM dolt_constraint_violations_t;",
+				Expected: []sql.Row{{0}},
+			},
+			{
+				Query:    "CALL DOLT_COMMIT('-am', 'merge and resolve violations');",
+				Expected: []sql.Row{{doltCommit}},
+			},
+			{
+				Query:    "SELECT * FROM t ORDER BY pk;",
+				Expected: []sql.Row{{1, 0, 0}, {2, 1, 2}},
+			},
+		},
+	},
+	{
+		// Merge error when a table has multiple constraint violations (e.g. same row violates two unique keys)
+		Name: "merge error lists all constraint violations when table has multiple violations",
+		SetUpScript: []string{
+			"CREATE TABLE t (pk int PRIMARY KEY, col1 int UNIQUE, col2 int UNIQUE);",
+			"CALL DOLT_ADD('.')",
+			"CALL DOLT_COMMIT('-am', 'create table');",
+
+			"CALL DOLT_CHECKOUT('-b', 'right');",
+			"INSERT INTO t values (2, 1, 1);",
+			"CALL DOLT_COMMIT('-am', 'right edit');",
+
+			"CALL DOLT_CHECKOUT('main');",
+			"INSERT INTO t VALUES (1, 1, 1);",
+			"CALL DOLT_COMMIT('-am', 'left edit');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query: "CALL DOLT_MERGE('right');",
+				ExpectedErrStr: dsess.ErrUnresolvedConstraintViolationsCommit.Error() + dsess.ConstraintViolationsListPrefix +
+					"\nType: Unique Key Constraint Violation,\n" +
+					"\tName: col1,\n" +
+					"\tColumns: [col1] (2 row(s))" +
+					"\nType: Unique Key Constraint Violation,\n" +
+					"\tName: col2,\n" +
+					"\tColumns: [col2] (2 row(s))",
+			},
+			{
+				Query:    "SELECT * from DOLT_CONSTRAINT_VIOLATIONS;",
+				Expected: []sql.Row{},
+			},
+		},
+	},
+	{
+		Name:    "merge error includes row count for foreign key violations",
+		Dialect: "mysql",
+		SetUpScript: []string{
+			"CREATE TABLE parent (pk int PRIMARY KEY);",
+			"CREATE TABLE child (pk int PRIMARY KEY, fk int, FOREIGN KEY (fk) REFERENCES parent(pk));",
+			"INSERT INTO parent VALUES (1);",
+			"INSERT INTO child VALUES (1, 1);",
+			"CALL DOLT_ADD('.')",
+			"CALL DOLT_COMMIT('-am', 'create tables');",
+
+			"CALL DOLT_CHECKOUT('-b', 'right');",
+			"INSERT INTO child VALUES (2, 1), (3, 1);",
+			"CALL DOLT_COMMIT('-am', 'add two children referencing parent');",
+
+			"CALL DOLT_CHECKOUT('main');",
+			"SET FOREIGN_KEY_CHECKS = 0;",
+			"DELETE FROM parent WHERE pk = 1;",
+			"SET FOREIGN_KEY_CHECKS = 1;",
+			"CALL DOLT_COMMIT('-am', 'delete parent');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query: "CALL DOLT_MERGE('right');",
+				ExpectedErrStr: dsess.ErrUnresolvedConstraintViolationsCommit.Error() + dsess.ConstraintViolationsListPrefix +
+					"\nType: Foreign Key Constraint Violation\n" +
+					"\tForeignKey: child_ibfk_1,\n" +
+					"\tTable: child,\n" +
+					"\tReferencedTable: parent,\n" +
+					"\tIndex: fk,\n" +
+					"\tReferencedIndex:  (3 row(s))",
+			},
+			{
+				Query:    "SELECT * from DOLT_CONSTRAINT_VIOLATIONS;",
+				Expected: []sql.Row{},
+			},
+		},
+	},
+	{
+		Name: "merge error includes row count for null constraint violations",
+		SetUpScript: []string{
+			"CREATE TABLE t (pk int PRIMARY KEY, c int);",
+			"INSERT INTO t VALUES (1, 1), (2, 2);",
+			"CALL DOLT_ADD('.')",
+			"CALL DOLT_COMMIT('-am', 'create table');",
+
+			"CALL DOLT_CHECKOUT('-b', 'right');",
+			"UPDATE t SET c = NULL WHERE pk IN (1, 2);",
+			"CALL DOLT_COMMIT('-am', 'set both to null');",
+
+			"CALL DOLT_CHECKOUT('main');",
+			"ALTER TABLE t MODIFY c int NOT NULL;",
+			"CALL DOLT_COMMIT('-am', 'add not null');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query: "CALL DOLT_MERGE('right');",
+				ExpectedErrStr: dsess.ErrUnresolvedConstraintViolationsCommit.Error() + dsess.ConstraintViolationsListPrefix +
+					"\nType: Null Constraint Violation,\n" +
+					"\tColumns: [c] (2 row(s))",
+			},
+			{
+				Query:    "SELECT * from DOLT_CONSTRAINT_VIOLATIONS;",
+				Expected: []sql.Row{},
+			},
+		},
+	},
+	{
+		Name:    "merge error includes row count for check constraint violations",
+		Dialect: "mysql",
+		SetUpScript: []string{
+			"CREATE TABLE t (pk int PRIMARY KEY, col int);",
+			"INSERT INTO t VALUES (1, 1), (2, 2);",
+			"CALL DOLT_ADD('.')",
+			"CALL DOLT_COMMIT('-am', 'create table');",
+
+			"CALL DOLT_CHECKOUT('-b', 'right');",
+			"INSERT INTO t VALUES (3, -1), (4, -1);",
+			"CALL DOLT_COMMIT('-am', 'add rows that will violate check');",
+
+			"CALL DOLT_CHECKOUT('main');",
+			"ALTER TABLE t ADD CONSTRAINT chk_positive CHECK (col > 0);",
+			"CALL DOLT_COMMIT('-am', 'add check constraint');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query: "CALL DOLT_MERGE('right');",
+				ExpectedErrStr: dsess.ErrUnresolvedConstraintViolationsCommit.Error() + dsess.ConstraintViolationsListPrefix +
+					"\nType: Check Constraint Violation,\n" +
+					"\tName: chk_positive,\n" +
+					"\tExpression: (`col` > 0) (2 row(s))",
+			},
+			{
+				Query:    "SELECT * from DOLT_CONSTRAINT_VIOLATIONS;",
+				Expected: []sql.Row{},
+			},
+		},
+	},
 }
 
 var SchemaConflictScripts = []queries.ScriptTest{
@@ -4589,362 +4846,6 @@ var SchemaConflictScripts = []queries.ScriptTest{
 				Expected: []sql.Row{
 					{"t", byte(0), "schema conflict"},
 				},
-			},
-		},
-	},
-}
-
-// OldFormatMergeConflictsAndCVsScripts tests old format merge behavior
-// where violations are appended and merges are aborted if there are existing
-// violations and/or conflicts.
-var OldFormatMergeConflictsAndCVsScripts = []queries.ScriptTest{
-	{
-		Name: "merging branches into a constraint violated head. Any new violations are appended",
-		SetUpScript: []string{
-			"CREATE table parent (pk int PRIMARY KEY, col1 int);",
-			"CREATE table child (pk int PRIMARY KEY, parent_fk int, FOREIGN KEY (parent_fk) REFERENCES parent(pk));",
-			"CREATE table other (pk int);",
-			"CALL DOLT_ADD('.')",
-			"INSERT INTO parent VALUES (1, 1), (2, 2);",
-			"CALL DOLT_COMMIT('-am', 'setup');",
-			"CALL DOLT_BRANCH('branch1');",
-			"CALL DOLT_BRANCH('branch2');",
-		},
-		Assertions: []queries.ScriptTestAssertion{
-			{
-				// we need dolt_force_transaction_commit because we want to
-				// transaction commit constraint violations that occur as a
-				// result of a merge.
-				Query:    "set autocommit = off, dolt_force_transaction_commit = on",
-				Expected: []sql.Row{{types.NewOkResult(0)}},
-			},
-			{
-				Query:    "DELETE FROM parent where pk = 1;",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-			{
-				Query:    "CALL DOLT_COMMIT('-am', 'delete parent 1');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:    "CALL DOLT_CHECKOUT('branch1');",
-				Expected: []sql.Row{{0, "Switched to branch 'branch1'"}},
-			},
-			{
-				Query:    "INSERT INTO CHILD VALUES (1, 1);",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-			{
-				Query:    "CALL DOLT_COMMIT('-am', 'insert child of parent 1');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:    "CALL DOLT_CHECKOUT('main');",
-				Expected: []sql.Row{{0, "Switched to branch 'main'"}},
-			},
-			{
-				Query:    "CALL DOLT_MERGE('branch1');",
-				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
-			},
-			{
-				Query:    "SELECT violation_type, pk, parent_fk from dolt_constraint_violations_child;",
-				Expected: []sql.Row{{uint16(1), 1, 1}},
-			},
-			{
-				Query:    "COMMIT;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:          "CALL DOLT_COMMIT('-am', 'commit constraint violations');",
-				ExpectedErrStr: "error: the table(s) child have constraint violations",
-			},
-			{
-				Query:    "CALL DOLT_COMMIT('-afm', 'commit constraint violations');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:    "CALL DOLT_BRANCH('branch3');",
-				Expected: []sql.Row{{0}},
-			},
-			{
-				Query:    "DELETE FROM parent where pk = 2;",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-			{
-				Query:    "CALL DOLT_COMMIT('-afm', 'remove parent 2');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:    "CALL DOLT_CHECKOUT('branch2');",
-				Expected: []sql.Row{{0, "Switched to branch 'branch2'"}},
-			},
-			{
-				Query:    "INSERT INTO OTHER VALUES (1);",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-			{
-				Query:    "CALL DOLT_COMMIT('-am', 'non-fk insert');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:    "CALL DOLT_CHECKOUT('main');",
-				Expected: []sql.Row{{0, "Switched to branch 'main'"}},
-			},
-			{
-				Query:    "CALL DOLT_MERGE('branch2');",
-				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
-			},
-			{
-				Query:    "SELECT violation_type, pk, parent_fk from dolt_constraint_violations_child;",
-				Expected: []sql.Row{{uint16(1), 1, 1}},
-			},
-			{
-				Query:    "COMMIT;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:          "CALL DOLT_COMMIT('-am', 'commit non-conflicting merge');",
-				ExpectedErrStr: "error: the table(s) child have constraint violations",
-			},
-			{
-				Query:    "CALL DOLT_COMMIT('-afm', 'commit non-conflicting merge');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:    "CALL DOLT_CHECKOUT('branch3');",
-				Expected: []sql.Row{{0, "Switched to branch 'branch3'"}},
-			},
-			{
-				Query:    "INSERT INTO CHILD VALUES (2, 2);",
-				Expected: []sql.Row{{types.NewOkResult(1)}},
-			},
-			{
-				Query:    "CALL DOLT_COMMIT('-afm', 'add child of parent 2');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:    "CALL DOLT_CHECKOUT('main');",
-				Expected: []sql.Row{{0, "Switched to branch 'main'"}},
-			},
-			{
-				Query:    "CALL DOLT_MERGE('branch3');",
-				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
-			},
-			{
-				Query:    "SELECT violation_type, pk, parent_fk from dolt_constraint_violations_child;",
-				Expected: []sql.Row{{uint16(1), 1, 1}, {uint16(1), 2, 2}},
-			},
-		},
-	},
-	{
-		Name: "conflicting merge aborts when conflicts and violations already exist",
-		SetUpScript: []string{
-			"CREATE table parent (pk int PRIMARY KEY, col1 int);",
-			"CREATE table child (pk int PRIMARY KEY, parent_fk int, FOREIGN KEY (parent_fk) REFERENCES parent(pk));",
-			"CALL DOLT_ADD('.')",
-			"INSERT INTO parent VALUES (1, 1), (2, 1);",
-			"CALL DOLT_COMMIT('-am', 'create table with data');",
-			"CALL DOLT_BRANCH('other');",
-			"CALL DOLT_BRANCH('other2');",
-			"UPDATE parent SET col1 = 2 where pk = 1;",
-			"DELETE FROM parent where pk = 2;",
-			"CALL DOLT_COMMIT('-am', 'updating col1 to 2 and remove pk = 2');",
-			"CALL DOLT_CHECKOUT('other');",
-			"UPDATE parent SET col1 = 3 where pk = 1;",
-			"INSERT into child VALUEs (1, 2);",
-			"CALL DOLT_COMMIT('-am', 'updating col1 to 3 and adding child of pk 2');",
-			"CALL DOLT_CHECKOUT('other2')",
-			"UPDATE parent SET col1 = 4 where pk = 1",
-			"CALL DOLT_COMMIT('-am', 'updating col1 to 4');",
-			"CALL DOLT_CHECKOUT('main');",
-		},
-		Assertions: []queries.ScriptTestAssertion{
-			{
-				Query:    "SET dolt_force_transaction_commit = 1",
-				Expected: []sql.Row{{types.NewOkResult(0)}},
-			},
-			{
-				Query:    "CALL DOLT_MERGE('other');",
-				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
-			},
-			{
-				Query:    "SELECT * from parent;",
-				Expected: []sql.Row{{1, 2}},
-			},
-			{
-				Query:    "SELECT * from child;",
-				Expected: []sql.Row{{1, 2}},
-			},
-			{
-				Query:    "SELECT base_col1, base_pk, our_col1, our_pk, their_col1, their_pk from dolt_conflicts_parent;",
-				Expected: []sql.Row{{1, 1, 2, 1, 3, 1}},
-			},
-			{
-				Query:    "SELECT violation_type, pk, parent_fk from dolt_constraint_violations_child;",
-				Expected: []sql.Row{{uint16(1), 1, 2}},
-			},
-			// commit so we can merge again
-			{
-				Query:    "CALL DOLT_COMMIT('-afm', 'committing merge conflicts');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:          "CALL DOLT_MERGE('other2');",
-				ExpectedErrStr: "existing unresolved conflicts would be overridden by new conflicts produced by merge. Please resolve them and try again",
-			},
-			{
-				Query:    "SELECT * from parent;",
-				Expected: []sql.Row{{1, 2}},
-			},
-			{
-				Query:    "SELECT * from child;",
-				Expected: []sql.Row{{1, 2}},
-			},
-			{
-				Query:    "SELECT base_col1, base_pk, our_col1, our_pk, their_col1, their_pk from dolt_conflicts_parent;",
-				Expected: []sql.Row{{1, 1, 2, 1, 3, 1}},
-			},
-			{
-				Query:    "SELECT violation_type, pk, parent_fk from dolt_constraint_violations_child;",
-				Expected: []sql.Row{{uint16(1), 1, 2}},
-			},
-		},
-	},
-	{
-		Name: "non-conflicting / non-violating merge succeeds when conflicts and violations already exist",
-		SetUpScript: []string{
-			"CREATE table parent (pk int PRIMARY KEY, col1 int);",
-			"CREATE table child (pk int PRIMARY KEY, parent_fk int, FOREIGN KEY (parent_fk) REFERENCES parent(pk));",
-			"CALL DOLT_ADD('.')",
-			"INSERT INTO parent VALUES (1, 1), (2, 1);",
-			"CALL DOLT_COMMIT('-am', 'create table with data');",
-			"CALL DOLT_BRANCH('other');",
-			"CALL DOLT_BRANCH('other2');",
-			"UPDATE parent SET col1 = 2 where pk = 1;",
-			"DELETE FROM parent where pk = 2;",
-			"CALL DOLT_COMMIT('-am', 'updating col1 to 2 and remove pk = 2');",
-			"CALL DOLT_CHECKOUT('other');",
-			"UPDATE parent SET col1 = 3 where pk = 1;",
-			"INSERT into child VALUES (1, 2);",
-			"CALL DOLT_COMMIT('-am', 'updating col1 to 3 and adding child of pk 2');",
-			"CALL DOLT_CHECKOUT('other2')",
-			"INSERT INTO parent values (3, 1);",
-			"CALL DOLT_COMMIT('-am', 'insert parent with pk 3');",
-			"CALL DOLT_CHECKOUT('main');",
-		},
-		Assertions: []queries.ScriptTestAssertion{
-			{
-				Query:    "SET dolt_force_transaction_commit = 1;",
-				Expected: []sql.Row{{types.NewOkResult(0)}},
-			},
-			{
-				Query:    "CALL DOLT_MERGE('other');",
-				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
-			},
-			{
-				Query:    "SELECT * from parent;",
-				Expected: []sql.Row{{1, 2}},
-			},
-			{
-				Query:    "SELECT * from child;",
-				Expected: []sql.Row{{1, 2}},
-			},
-			{
-				Query:    "SELECT base_col1, base_pk, our_col1, our_pk, their_col1, their_pk from dolt_conflicts_parent;",
-				Expected: []sql.Row{{1, 1, 2, 1, 3, 1}},
-			},
-			{
-				Query:    "SELECT violation_type, pk, parent_fk from dolt_constraint_violations_child;",
-				Expected: []sql.Row{{uint16(1), 1, 2}},
-			},
-			// commit so we can merge again
-			{
-				Query:    "CALL DOLT_COMMIT('-afm', 'committing merge conflicts');",
-				Expected: []sql.Row{{doltCommit}},
-			},
-			{
-				Query:    "CALL DOLT_MERGE('other2');",
-				Expected: []sql.Row{{"", 0, 1, "conflicts found"}},
-			},
-			{
-				Query:    "SELECT * from parent;",
-				Expected: []sql.Row{{1, 2}, {3, 1}},
-			},
-			{
-				Query:    "SELECT * from child;",
-				Expected: []sql.Row{{1, 2}},
-			},
-			{
-				Query:    "SELECT base_col1, base_pk, our_col1, our_pk, their_col1, their_pk from dolt_conflicts_parent;",
-				Expected: []sql.Row{{1, 1, 2, 1, 3, 1}},
-			},
-			{
-				Query:    "SELECT violation_type, pk, parent_fk from dolt_constraint_violations_child;",
-				Expected: []sql.Row{{uint16(1), 1, 2}},
-			},
-		},
-	},
-	// Unique key violations
-	{
-		Name: "unique key violations that already exist in the left abort the merge with an error",
-		SetUpScript: []string{
-			"SET dolt_force_transaction_commit = on;",
-			"CREATE TABLE t (pk int PRIMARY KEY, col1 int);",
-			"CALL DOLT_ADD('.')",
-			"CALL DOLT_COMMIT('-am', 'table');",
-			"CALL DOLT_BRANCH('right');",
-			"INSERT INTO t VALUES (1, 1), (2, 1);",
-			"CALL DOLT_COMMIT('-am', 'data');",
-
-			"CALL DOLT_CHECKOUT('right');",
-			"ALTER TABLE t ADD UNIQUE col1_uniq (col1);",
-			"CALL DOLT_COMMIT('-am', 'unqiue constraint');",
-
-			"CALL DOLT_CHECKOUT('main');",
-		},
-		Assertions: []queries.ScriptTestAssertion{
-			{
-				Query:          "CALL DOLT_MERGE('right');",
-				ExpectedErrStr: "duplicate unique key given: [1]",
-			},
-			{
-				Query:    "SELECT * from t",
-				Expected: []sql.Row{{1, 1}, {2, 1}},
-			},
-			{
-				Query: "show create table t",
-				Expected: []sql.Row{{"t",
-					"CREATE TABLE `t` (\n" +
-						"  `pk` int NOT NULL,\n" +
-						"  `col1` int,\n" +
-						"  PRIMARY KEY (`pk`)\n" +
-						") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_bin"}},
-			},
-		},
-	},
-	// not a base case, but helpful to understand...
-	{
-		Name: "right adds a unique key constraint and fixes existing violations. On merge, because left still has the violation, merge is aborted.",
-		SetUpScript: []string{
-			"SET dolt_force_transaction_commit = on;",
-			"CREATE TABLE t (pk int PRIMARY KEY, col1 int);",
-			"CALL DOLT_ADD('.');",
-			"INSERT INTO t VALUES (1, 1), (2, 1);",
-			"CALL DOLT_COMMIT('-am', 'table and data');",
-
-			"CALL DOLT_CHECKOUT('-b', 'right');",
-			"UPDATE t SET col1 = 2 where pk = 2;",
-			"ALTER TABLE t ADD UNIQUE col1_uniq (col1);",
-			"CALL DOLT_COMMIT('-am', 'right adds a unique index');",
-
-			"CALL DOLT_CHECKOUT('main');",
-			"INSERT INTO t VALUES (3, 3);",
-			"CALL DOLT_COMMIT('-am', 'left edit');",
-		},
-		Assertions: []queries.ScriptTestAssertion{
-			{
-				Query:          "CALL DOLT_MERGE('right');",
-				ExpectedErrStr: "duplicate unique key given: [1]",
 			},
 		},
 	},

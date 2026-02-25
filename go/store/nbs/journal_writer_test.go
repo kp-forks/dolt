@@ -16,7 +16,6 @@ package nbs
 
 import (
 	"context"
-	"encoding/base32"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -25,6 +24,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	dherrors "github.com/dolthub/dolt/go/libraries/utils/errors"
 	"github.com/dolthub/dolt/go/store/chunks"
 	"github.com/dolthub/dolt/go/store/hash"
 )
@@ -163,13 +163,13 @@ func TestJournalWriterReadWrite(t *testing.T) {
 					assert.Equal(t, op.buf, act, "operation %d failed", i)
 				case writeOp:
 					var p []byte
-					p, err = j.getBytes(context.Background(), len(op.buf))
+					p, err = j.getBytes(context.Background(), dherrors.FatalBehaviorError, len(op.buf))
 					require.NoError(t, err, "operation %d errored", i)
 					n := copy(p, op.buf)
 					assert.Equal(t, len(op.buf), n, "operation %d failed", i)
 					off += int64(n)
 				case flushOp:
-					err = j.flush(context.Background())
+					err = j.flush(context.Background(), dherrors.FatalBehaviorError)
 					assert.NoError(t, err, "operation %d errored", i)
 				default:
 					t.Fatal("unknown opKind")
@@ -195,7 +195,7 @@ func TestJournalWriterWriteCompressedChunk(t *testing.T) {
 	j := newTestJournalWriter(t, path)
 	data := randomCompressedChunks(1024)
 	for a, cc := range data {
-		err := j.writeCompressedChunk(context.Background(), cc)
+		err := j.writeCompressedChunk(context.Background(), dherrors.FatalBehaviorError, cc)
 		require.NoError(t, err)
 		r, _ := j.ranges.get(a)
 		validateLookup(t, j, r, cc)
@@ -210,11 +210,11 @@ func TestJournalWriterBootstrap(t *testing.T) {
 	data := randomCompressedChunks(1024)
 	var last hash.Hash
 	for _, cc := range data {
-		err := j.writeCompressedChunk(context.Background(), cc)
+		err := j.writeCompressedChunk(context.Background(), dherrors.FatalBehaviorError, cc)
 		require.NoError(t, err)
 		last = cc.Hash()
 	}
-	require.NoError(t, j.commitRootHash(context.Background(), last))
+	require.NoError(t, j.commitRootHash(context.Background(), dherrors.FatalBehaviorError, last))
 	require.NoError(t, j.Close())
 
 	j, _, err := openJournalWriter(ctx, path)
@@ -272,10 +272,10 @@ func TestJournalWriterSyncClose(t *testing.T) {
 	path := newTestFilePath(t)
 	j := newTestJournalWriter(t, path)
 	p := []byte("sit")
-	buf, err := j.getBytes(context.Background(), len(p))
+	buf, err := j.getBytes(context.Background(), dherrors.FatalBehaviorError, len(p))
 	require.NoError(t, err)
 	copy(buf, p)
-	j.flush(context.Background())
+	j.flush(context.Background(), dherrors.FatalBehaviorError)
 	assert.Equal(t, 0, len(j.buf))
 	assert.Equal(t, 3, int(j.off))
 }
@@ -343,13 +343,13 @@ func TestJournalIndexBootstrap(t *testing.T) {
 			for i, e := range epochs {
 				for _, cc := range e.records {
 					recordCnt++
-					assert.NoError(t, j.writeCompressedChunk(context.Background(), cc))
+					assert.NoError(t, j.writeCompressedChunk(context.Background(), dherrors.FatalBehaviorError, cc))
 					if rand.Int()%10 == 0 { // periodic commits
-						assert.NoError(t, j.commitRootHash(context.Background(), cc.H))
+						assert.NoError(t, j.commitRootHash(context.Background(), dherrors.FatalBehaviorError, cc.H))
 					}
 				}
-				o := j.offset()                                                   // precommit offset
-				assert.NoError(t, j.commitRootHash(context.Background(), e.last)) // commit |e.last|
+				o := j.offset()                                                                                // precommit offset
+				assert.NoError(t, j.commitRootHash(context.Background(), dherrors.FatalBehaviorError, e.last)) // commit |e.last|
 				if i == len(epochs) {
 					break // don't index |test.novel|
 				}
@@ -402,13 +402,6 @@ func TestJournalIndexBootstrap(t *testing.T) {
 			assert.Error(t, err)
 		})
 	}
-}
-
-var encoding = base32.NewEncoding("0123456789abcdefghijklmnopqrstuv")
-
-// encode returns the base32 encoding in the Dolt alphabet.
-func encode(data []byte) string {
-	return encoding.EncodeToString(data)
 }
 
 func randomCompressedChunks(cnt int) (compressed map[hash.Hash]CompressedChunk) {

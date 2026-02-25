@@ -144,6 +144,31 @@ func (a *GitAPIImpl) ListTree(ctx context.Context, commit OID, treePath string) 
 	return entries, nil
 }
 
+func (a *GitAPIImpl) ListTreeRecursive(ctx context.Context, commit OID) ([]TreeEntry, error) {
+	// Include trees (-t) so callers can resolve directory paths as tree objects.
+	// Recurse (-r) so we get a full snapshot in one invocation.
+	out, err := a.r.Run(ctx, RunOptions{}, "ls-tree", "-r", "-t", commit.String()+"^{tree}")
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
+	if len(lines) == 1 && strings.TrimSpace(lines[0]) == "" {
+		return nil, nil
+	}
+	entries := make([]TreeEntry, 0, len(lines))
+	for _, line := range lines {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		e, err := parseLsTreeLine(line)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, e)
+	}
+	return entries, nil
+}
+
 func (a *GitAPIImpl) CatFileType(ctx context.Context, oid OID) (string, error) {
 	out, err := a.r.Run(ctx, RunOptions{}, "cat-file", "-t", oid.String())
 	if err != nil {
@@ -282,6 +307,47 @@ func (a *GitAPIImpl) UpdateRef(ctx context.Context, ref string, newOID OID, msg 
 	return err
 }
 
+func (a *GitAPIImpl) FetchRef(ctx context.Context, remote string, srcRef string, dstRef string) error {
+	if remote == "" {
+		return fmt.Errorf("git fetch: remote is required")
+	}
+	if srcRef == "" {
+		return fmt.Errorf("git fetch: src ref is required")
+	}
+	if dstRef == "" {
+		return fmt.Errorf("git fetch: dst ref is required")
+	}
+	// Forced refspec to keep tracking refs in sync with remote truth.
+	srcRef = strings.TrimPrefix(srcRef, "+")
+	refspec := "+" + srcRef + ":" + dstRef
+	// --refmap="" prevents git from also applying the remote's configured
+	// fetch refspecs. Without this, stale tracking refs from default refspecs
+	// can cause directory/file conflicts that make git exit 1 even when our
+	// specific refspec succeeds.
+	_, err := a.r.Run(ctx, RunOptions{}, "fetch", "--no-tags", "--refmap=", remote, refspec)
+	if err != nil && isRemoteRefNotFoundErr(err) {
+		return &RefNotFoundError{Ref: srcRef}
+	}
+	return err
+}
+
+func (a *GitAPIImpl) PushRefWithLease(ctx context.Context, remote string, srcRef string, dstRef string, expectedDstOID OID) error {
+	if remote == "" {
+		return fmt.Errorf("git push: remote is required")
+	}
+	if srcRef == "" {
+		return fmt.Errorf("git push: src ref is required")
+	}
+	if dstRef == "" {
+		return fmt.Errorf("git push: dst ref is required")
+	}
+	srcRef = strings.TrimPrefix(srcRef, "+")
+	refspec := srcRef + ":" + dstRef
+	lease := "--force-with-lease=" + dstRef + ":" + expectedDstOID.String()
+	_, err := a.r.Run(ctx, RunOptions{}, "push", "--porcelain", lease, remote, refspec)
+	return err
+}
+
 func isRefNotFoundErr(err error) bool {
 	ce, ok := err.(*CmdError)
 	if !ok {
@@ -296,6 +362,19 @@ func isRefNotFoundErr(err error) bool {
 	return strings.Contains(msg, "needed a single revision") ||
 		strings.Contains(msg, "unknown revision") ||
 		strings.Contains(msg, "not a valid object name")
+}
+
+func isRemoteRefNotFoundErr(err error) bool {
+	ce, ok := err.(*CmdError)
+	if !ok {
+		return false
+	}
+	msg := strings.ToLower(string(ce.Output))
+	// Typical fetch failure when the remote ref doesn't exist:
+	//   fatal: couldn't find remote ref refs/dolt/data
+	return strings.Contains(msg, "couldn't find remote ref") ||
+		strings.Contains(msg, "could not find remote ref") ||
+		strings.Contains(msg, "remote ref does not exist")
 }
 
 func isPathNotFoundErr(err error) bool {

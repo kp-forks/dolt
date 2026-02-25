@@ -15,7 +15,6 @@
 package typeinfo
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -25,107 +24,13 @@ import (
 	"github.com/dolthub/dolt/go/store/types"
 )
 
-type Identifier string
-
-const (
-	UnknownTypeIdentifier            Identifier = "unknown"
-	BitTypeIdentifier                Identifier = "bit"
-	BlobStringTypeIdentifier         Identifier = "blobstring"
-	BoolTypeIdentifier               Identifier = "bool"
-	DatetimeTypeIdentifier           Identifier = "datetime"
-	DecimalTypeIdentifier            Identifier = "decimal"
-	EnumTypeIdentifier               Identifier = "enum"
-	FloatTypeIdentifier              Identifier = "float"
-	JSONTypeIdentifier               Identifier = "json"
-	InlineBlobTypeIdentifier         Identifier = "inlineblob"
-	IntTypeIdentifier                Identifier = "int"
-	SetTypeIdentifier                Identifier = "set"
-	TimeTypeIdentifier               Identifier = "time"
-	TupleTypeIdentifier              Identifier = "tuple"
-	UintTypeIdentifier               Identifier = "uint"
-	UuidTypeIdentifier               Identifier = "uuid"
-	VarBinaryTypeIdentifier          Identifier = "varbinary"
-	VarStringTypeIdentifier          Identifier = "varstring"
-	VectorTypeIdentifier             Identifier = "vector"
-	YearTypeIdentifier               Identifier = "year"
-	GeometryTypeIdentifier           Identifier = "geometry"
-	PointTypeIdentifier              Identifier = "point"
-	LineStringTypeIdentifier         Identifier = "linestring"
-	PolygonTypeIdentifier            Identifier = "polygon"
-	MultiPointTypeIdentifier         Identifier = "multipoint"
-	MultiLineStringTypeIdentifier    Identifier = "multilinestring"
-	MultiPolygonTypeIdentifier       Identifier = "multipolygon"
-	GeometryCollectionTypeIdentifier Identifier = "geometrycollection"
-	ExtendedTypeIdentifier           Identifier = "extended"
-)
-
-var Identifiers = map[Identifier]struct{}{
-	UnknownTypeIdentifier:            {},
-	BitTypeIdentifier:                {},
-	BlobStringTypeIdentifier:         {},
-	BoolTypeIdentifier:               {},
-	DatetimeTypeIdentifier:           {},
-	DecimalTypeIdentifier:            {},
-	EnumTypeIdentifier:               {},
-	FloatTypeIdentifier:              {},
-	JSONTypeIdentifier:               {},
-	InlineBlobTypeIdentifier:         {},
-	IntTypeIdentifier:                {},
-	SetTypeIdentifier:                {},
-	TimeTypeIdentifier:               {},
-	TupleTypeIdentifier:              {},
-	UintTypeIdentifier:               {},
-	UuidTypeIdentifier:               {},
-	VarBinaryTypeIdentifier:          {},
-	VarStringTypeIdentifier:          {},
-	YearTypeIdentifier:               {},
-	GeometryTypeIdentifier:           {},
-	PointTypeIdentifier:              {},
-	LineStringTypeIdentifier:         {},
-	PolygonTypeIdentifier:            {},
-	MultiPointTypeIdentifier:         {},
-	MultiLineStringTypeIdentifier:    {},
-	MultiPolygonTypeIdentifier:       {},
-	GeometryCollectionTypeIdentifier: {},
-	ExtendedTypeIdentifier:           {},
-}
-
 // TypeInfo is an interface used for encoding type information.
 type TypeInfo interface {
-	// ConvertNomsValueToValue converts a Noms value to a go value. The expected NomsKind of the given
-	// parameter is equivalent to the NomsKind returned by this type info. This is intended for retrieval
-	// from storage, thus we do no validation as we assume the stored value is already validated against
-	// the given type.
-	ConvertNomsValueToValue(v types.Value) (interface{}, error)
-
-	// ReadFrom reads a go value from a noms types.CodecReader directly
-	ReadFrom(nbf *types.NomsBinFormat, reader types.CodecReader) (interface{}, error)
-
-	// ConvertValueToNomsValue converts a go value or Noms value to a Noms value. The type of the Noms
-	// value will be equivalent to the NomsKind returned from NomsKind.
-	ConvertValueToNomsValue(ctx context.Context, vrw types.ValueReadWriter, v interface{}) (types.Value, error)
-
 	// Equals returns whether the given TypeInfo is equivalent to this TypeInfo.
 	Equals(other TypeInfo) bool
 
-	// FormatValue returns the stringified version of the value.
-	FormatValue(v types.Value) (*string, error)
-
-	// GetTypeIdentifier returns an identifier for this type used for serialization.
-	GetTypeIdentifier() Identifier
-
-	// GetTypeParams returns a map[string]string containing the type parameters.  This is used for
-	// serialization and deserialization of type information.
-	GetTypeParams() map[string]string
-
-	// IsValid takes in a types.Value and returns whether it is valid for this type.
-	IsValid(v types.Value) bool
-
 	// NomsKind returns the NomsKind that best matches this TypeInfo.
 	NomsKind() types.NomsKind
-
-	// Promote will promote the current TypeInfo to the largest representing TypeInfo of the same kind, such as Int8 to Int64.
-	Promote() TypeInfo
 
 	// ToSqlType returns the TypeInfo as a sql.Type. If an exact match is able to be made then that is
 	// the one returned, otherwise the sql.Type is the closest match possible.
@@ -295,68 +200,6 @@ func fillInCollationWithDefault(typ sql.Type) (sql.Type, error) {
 	return typ, nil
 }
 
-// FromTypeParams constructs a TypeInfo from the given identifier and parameters.
-func FromTypeParams(id Identifier, params map[string]string) (TypeInfo, error) {
-	switch id {
-	case BitTypeIdentifier:
-		return CreateBitTypeFromParams(params)
-	case BlobStringTypeIdentifier:
-		return CreateBlobStringTypeFromParams(params)
-	case BoolTypeIdentifier:
-		return BoolType, nil
-	case ExtendedTypeIdentifier:
-		return CreateExtendedTypeFromParams(params)
-	case DatetimeTypeIdentifier:
-		return CreateDatetimeTypeFromParams(params)
-	case DecimalTypeIdentifier:
-		return CreateDecimalTypeFromParams(params)
-	case EnumTypeIdentifier:
-		return CreateEnumTypeFromParams(params)
-	case FloatTypeIdentifier:
-		return CreateFloatTypeFromParams(params)
-	case GeometryCollectionTypeIdentifier:
-		return CreateGeomCollTypeFromParams(params)
-	case GeometryTypeIdentifier:
-		return CreateGeometryTypeFromParams(params)
-	case InlineBlobTypeIdentifier:
-		return CreateInlineBlobTypeFromParams(params)
-	case IntTypeIdentifier:
-		return CreateIntTypeFromParams(params)
-	case JSONTypeIdentifier:
-		return JSONType, nil
-	case LineStringTypeIdentifier:
-		return CreateLineStringTypeFromParams(params)
-	case MultiPointTypeIdentifier:
-		return CreateMultiPointTypeFromParams(params)
-	case MultiLineStringTypeIdentifier:
-		return CreateMultiLineStringTypeFromParams(params)
-	case MultiPolygonTypeIdentifier:
-		return CreateMultiPolygonTypeFromParams(params)
-	case PointTypeIdentifier:
-		return CreatePointTypeFromParams(params)
-	case PolygonTypeIdentifier:
-		return CreatePolygonTypeFromParams(params)
-	case SetTypeIdentifier:
-		return CreateSetTypeFromParams(params)
-	case TimeTypeIdentifier:
-		return TimeType, nil
-	case TupleTypeIdentifier:
-		return TupleType, nil
-	case UintTypeIdentifier:
-		return CreateUintTypeFromParams(params)
-	case UuidTypeIdentifier:
-		return UuidType, nil
-	case VarBinaryTypeIdentifier:
-		return CreateVarBinaryTypeFromParams(params)
-	case VarStringTypeIdentifier:
-		return CreateVarStringTypeFromParams(params)
-	case YearTypeIdentifier:
-		return YearType, nil
-	default:
-		return nil, fmt.Errorf(`"%v" cannot be made from an identifier and params`, id)
-	}
-}
-
 // FromKind returns the default TypeInfo for a given types.Value.
 func FromKind(kind types.NomsKind) TypeInfo {
 	switch kind {
@@ -399,21 +242,4 @@ func FromKind(kind types.NomsKind) TypeInfo {
 	default:
 		panic(fmt.Errorf(`no default type info for NomsKind "%v"`, kind.String()))
 	}
-}
-
-// ParseIdentifier takes in an Identifier in string form and returns the matching Identifier.
-// Returns UnknownTypeIdentifier when the string match is not found.
-func ParseIdentifier(name string) Identifier {
-	id := Identifier(name)
-	_, ok := Identifiers[id]
-	if ok {
-		return id
-	}
-	return UnknownTypeIdentifier
-}
-
-// String returns a string representation of the identifier. This may later be used in parsing to
-// retrieve the original identifier.
-func (i Identifier) String() string {
-	return string(i)
 }
