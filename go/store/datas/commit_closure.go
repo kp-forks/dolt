@@ -58,75 +58,19 @@ func NewParentsClosure(ctx context.Context, c *Commit, sv types.SerialMessage, v
 func newParentsClosureIterator(ctx context.Context, c *Commit, vr types.ValueReader, ns tree.NodeStore) (parentsClosureIter, error) {
 	sv := c.NomsValue()
 
-	if sm, ok := sv.(types.SerialMessage); ok {
-		cc, err := NewParentsClosure(ctx, c, sm, vr, ns)
-		if err != nil {
-			return nil, err
-		}
-		if cc.IsEmpty() {
-			return nil, nil
-		}
-		ci, err := cc.IterAllReverse(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return &fbParentsClosureIterator{i: ci, curr: prolly.NewCommitClosureKey(ns.Pool(), c.Height(), c.Addr()), err: nil}, nil
-	}
-
-	s, ok := sv.(types.Struct)
-	if !ok {
-		return nil, fmt.Errorf("target ref is not struct: %v", sv)
-	}
-	if s.Name() != commitName {
-		return nil, fmt.Errorf("target ref is not commit: %v", sv)
-	}
-
-	fv, ok, err := s.MaybeGet(parentsClosureField)
+	sm := sv.(types.SerialMessage)
+	cc, err := NewParentsClosure(ctx, c, sm, vr, ns)
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
+	if cc.IsEmpty() {
 		return nil, nil
 	}
-
-	mr, ok := fv.(types.Ref)
-	if !ok {
-		return nil, fmt.Errorf("value of parents_closure field is not Ref: %v", fv)
-	}
-
-	mv, err := mr.TargetValue(ctx, vr)
+	ci, err := cc.IterAllReverse(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	m, ok := mv.(types.Map)
-	if !ok {
-		return nil, fmt.Errorf("target value of parents_closure Ref is not Map: %v", mv)
-	}
-
-	maxKeyTuple, err := types.NewTuple(vr.Format(), types.Uint(18446744073709551615))
-	if err != nil {
-		return nil, err
-	}
-
-	mi, err := m.IteratorBackFrom(ctx, maxKeyTuple)
-	if err != nil {
-		return nil, err
-	}
-
-	initialCurr, err := commitToMapKeyTuple(vr.Format(), c)
-	if err != nil {
-		return nil, err
-	}
-
-	return &parentsClosureIterator{mi, nil, initialCurr}, nil
-}
-
-func commitToMapKeyTuple(f *types.NomsBinFormat, c *Commit) (types.Tuple, error) {
-	h := c.Addr()
-	ib := make([]byte, len(hash.Hash{}))
-	copy(ib, h[:])
-	return types.NewTuple(f, types.Uint(c.Height()), types.InlineBlob(ib))
+	return &fbParentsClosureIterator{i: ci, curr: prolly.NewCommitClosureKey(ns.Pool(), c.Height(), c.Addr()), err: nil}, nil
 }
 
 type parentsClosureIter interface {

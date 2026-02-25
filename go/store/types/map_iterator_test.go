@@ -29,48 +29,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMapIterator(t *testing.T) {
-	assert := assert.New(t)
-
-	vrw := newTestValueStore()
-
-	m, err := NewMap(context.Background(), vrw)
-	require.NoError(t, err)
-	me := m.Edit()
-	for i := 0; i < 5; i++ {
-		me.Set(String(string(byte(65+i))), Float(i))
-	}
-
-	m, err = me.Map(context.Background())
-	require.NoError(t, err)
-	test := func(it MapIterator, start int, msg string) {
-		for i := start; i < 5; i++ {
-			k, v, err := it.Next(context.Background())
-			require.NoError(t, err)
-
-			assert.True(k.Equals(k), msg)
-			assert.True(v.Equals(v), msg)
-			assert.True(String(string(byte(65+i))).Equals(k), msg)
-			assert.True(Float(i).Equals(v), msg)
-		}
-		k, v, err := it.Next(context.Background())
-		require.NoError(t, err)
-		assert.Nil(k, msg)
-		assert.Nil(v, msg)
-	}
-
-	test(mustMIter(m.Iterator(context.Background())), 0, "Iterator()")
-	test(mustMIter(m.IteratorAt(context.Background(), 0)), 0, "IteratorAt(0)")
-	test(mustMIter(m.IteratorAt(context.Background(), 5)), 5, "IteratorAt(5)")
-	test(mustMIter(m.IteratorAt(context.Background(), 6)), 5, "IteratorAt(6)")
-	test(mustMIter(m.IteratorFrom(context.Background(), String("?"))), 0, "IteratorFrom(?)")
-	test(mustMIter(m.IteratorFrom(context.Background(), String("A"))), 0, "IteratorFrom(A)")
-	test(mustMIter(m.IteratorFrom(context.Background(), String("C"))), 2, "IteratorFrom(C)")
-	test(mustMIter(m.IteratorFrom(context.Background(), String("E"))), 4, "IteratorFrom(E)")
-	test(mustMIter(m.IteratorFrom(context.Background(), String("F"))), 5, "IteratorFrom(F)")
-	test(mustMIter(m.IteratorFrom(context.Background(), String("G"))), 5, "IteratorFrom(G)")
-}
-
 func TestReverseMapIterator(t *testing.T) {
 	ctx := context.Background()
 	vrw := newTestValueStore()
