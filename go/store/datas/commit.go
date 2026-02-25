@@ -32,7 +32,6 @@ import (
 	"github.com/dolthub/dolt/go/gen/fb/serial"
 	"github.com/dolthub/dolt/go/store/chunks"
 	"github.com/dolthub/dolt/go/store/hash"
-	"github.com/dolthub/dolt/go/store/nomdl"
 	"github.com/dolthub/dolt/go/store/prolly/tree"
 	"github.com/dolthub/dolt/go/store/types"
 )
@@ -83,57 +82,6 @@ func (c *Commit) Height() uint64 {
 
 func (c *Commit) Addr() hash.Hash {
 	return c.addr
-}
-
-var commitTemplateWithParentsClosure = types.MakeStructTemplate(commitName, []string{
-	commitMetaField,
-	parentsField,
-	parentsClosureField,
-	parentsListField,
-	valueField,
-})
-
-var commitTemplateWithoutParentsClosure = types.MakeStructTemplate(commitName, []string{
-	commitMetaField,
-	parentsField,
-	parentsListField,
-	valueField,
-})
-
-var valueCommitType = nomdl.MustParseType(`Struct Commit {
-        meta: Struct {},
-        parents: Set<Ref<Cycle<Commit>>>,
-        parents_closure?: Ref<Value>, // Ref<Map<Value,Value>>,
-        parents_list?: List<Ref<Cycle<Commit>>>,
-        value: Value,
-}`)
-
-// newCommit creates a new commit object.
-//
-// A commit has the following type:
-//
-// ```
-//
-//	struct Commit {
-//	  meta: M,
-//	  parents: Set<Ref<Cycle<Commit>>>,
-//	  parentsList: List<Ref<Cycle<Commit>>>,
-//	  parentsClosure: Ref<Value>, // Map<Tuple,List<Ref<Value>>>,
-//	  value: T,
-//	}
-//
-// ```
-// where M is a struct type and T is any type.
-func newCommit(ctx context.Context, value types.Value, parentsList types.List, parentsClosure types.Ref, includeParentsClosure bool, meta types.Struct) (types.Struct, error) {
-	parentsSet, err := parentsList.ToSet(ctx)
-	if err != nil {
-		return types.EmptyStruct(meta.Format()), err
-	}
-	if includeParentsClosure {
-		return commitTemplateWithParentsClosure.NewStruct(meta.Format(), []types.Value{meta, parentsSet, parentsClosure, parentsList, value})
-	} else {
-		return commitTemplateWithoutParentsClosure.NewStruct(meta.Format(), []types.Value{meta, parentsSet, parentsList, value})
-	}
 }
 
 func NewCommitForValue(ctx context.Context, cs chunks.ChunkStore, vrw types.ValueReadWriter, ns tree.NodeStore, v types.Value, opts CommitOptions) (*Commit, error) {
@@ -637,52 +585,6 @@ func findCommonCommit(a, b []*Commit) (*Commit, bool) {
 		}
 	}
 	return nil, false
-}
-
-func makeCommitStructType(metaType, parentsType, parentsListType, parentsClosureType, valueType *types.Type, includeParentsClosure bool) (*types.Type, error) {
-	if includeParentsClosure {
-		return types.MakeStructType(commitName,
-			types.StructField{
-				Name: commitMetaField,
-				Type: metaType,
-			},
-			types.StructField{
-				Name: parentsField,
-				Type: parentsType,
-			},
-			types.StructField{
-				Name: parentsListField,
-				Type: parentsListType,
-			},
-			types.StructField{
-				Name: parentsClosureField,
-				Type: parentsClosureType,
-			},
-			types.StructField{
-				Name: valueField,
-				Type: valueType,
-			},
-		)
-	} else {
-		return types.MakeStructType(commitName,
-			types.StructField{
-				Name: commitMetaField,
-				Type: metaType,
-			},
-			types.StructField{
-				Name: parentsField,
-				Type: parentsType,
-			},
-			types.StructField{
-				Name: parentsListField,
-				Type: parentsListType,
-			},
-			types.StructField{
-				Name: valueField,
-				Type: valueType,
-			},
-		)
-	}
 }
 
 func firstError(l, r error) error {

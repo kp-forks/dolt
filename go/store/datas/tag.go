@@ -16,13 +16,11 @@ package datas
 
 import (
 	"context"
-	"errors"
 
 	flatbuffers "github.com/dolthub/flatbuffers/v23/go"
 
 	"github.com/dolthub/dolt/go/gen/fb/serial"
 	"github.com/dolthub/dolt/go/store/hash"
-	"github.com/dolthub/dolt/go/store/nomdl"
 	"github.com/dolthub/dolt/go/store/types"
 )
 
@@ -31,15 +29,6 @@ const (
 	tagCommitRefField = "ref"
 	tagName           = "Tag"
 )
-
-var tagTemplate = types.MakeStructTemplate(tagName, []string{tagMetaField, tagCommitRefField})
-
-// ref is a Ref<Commit>, but 'Commit' is not defined in this snippet.
-// Tag refs are validated to point at Commits during write.
-var valueTagType = nomdl.MustParseType(`Struct Tag {
-        meta: Struct {},
-        ref:  Ref<Value>,
-}`)
 
 // TagOptions is used to pass options into Tag.
 type TagOptions struct {
@@ -54,43 +43,13 @@ type TagOptions struct {
 func newTag(ctx context.Context, db *database, commitAddr hash.Hash, meta *TagMeta) (hash.Hash, types.Ref, error) {
 	types.AssertFormat_DOLT(db.Format())
 
-	commitSt, err := db.ReadValue(ctx, commitAddr)
-	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
-	}
-	iscommit, err := IsCommit(commitSt)
-	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
-	}
-	if !iscommit {
-		return hash.Hash{}, types.Ref{}, errors.New("newTag: commitAddr does not point to a commit.")
-	}
-	commitRef, err := types.NewRef(commitSt, db.Format())
+	data := tagSerialMessage(commitAddr, meta)
+	r, err := db.WriteValue(ctx, types.SerialMessage(data))
 	if err != nil {
 		return hash.Hash{}, types.Ref{}, err
 	}
 
-	var metaV types.Struct
-	if meta != nil {
-		var err error
-		metaV, err = meta.toNomsStruct(commitRef.Format())
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-	} else {
-		metaV = types.EmptyStruct(commitRef.Format())
-	}
-	tagSt, err := tagTemplate.NewStruct(metaV.Format(), []types.Value{metaV, commitRef})
-	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
-	}
-
-	tagRef, err := db.WriteValue(ctx, tagSt)
-	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
-	}
-
-	ref, err := types.ToRefOfValue(tagRef, db.Format())
+	ref, err := types.ToRefOfValue(r, db.Format())
 	if err != nil {
 		return hash.Hash{}, types.Ref{}, err
 	}
@@ -98,7 +57,7 @@ func newTag(ctx context.Context, db *database, commitAddr hash.Hash, meta *TagMe
 	return ref.TargetHash(), ref, nil
 }
 
-func tag_flatbuffer(commitAddr hash.Hash, meta *TagMeta) serial.Message {
+func tagSerialMessage(commitAddr hash.Hash, meta *TagMeta) serial.Message {
 	builder := flatbuffers.NewBuilder(1024)
 	addroff := builder.CreateByteVector(commitAddr[:])
 	var nameOff, emailOff, descOff flatbuffers.UOffsetT
@@ -125,17 +84,4 @@ func IsTag(ctx context.Context, v types.Value) (bool, error) {
 		return serial.GetFileID(data) == serial.TagFileID, nil
 	}
 	return false, nil
-}
-
-func makeTagStructType(metaType, refType *types.Type) (*types.Type, error) {
-	return types.MakeStructType(tagName,
-		types.StructField{
-			Name: tagMetaField,
-			Type: metaType,
-		},
-		types.StructField{
-			Name: tagCommitRefField,
-			Type: refType,
-		},
-	)
 }
