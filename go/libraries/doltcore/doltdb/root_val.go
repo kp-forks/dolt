@@ -156,22 +156,14 @@ type tableEdit struct {
 
 // NewRootValue returns a new RootValue. This is a variable as it's changed in Doltgres.
 var NewRootValue = func(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore, v types.Value) (RootValue, error) {
-	var storage rootValueStorage
+	types.AssertFormat_DOLT(vrw.Format())
 
-	if vrw.Format().UsesFlatbuffers() {
-		srv, err := serial.TryGetRootAsRootValue([]byte(v.(types.SerialMessage)), serial.MessagePrefixSz)
-		if err != nil {
-			return nil, err
-		}
-		storage = fbRvStorage{srv}
-	} else {
-		st, ok := v.(types.Struct)
-		if !ok {
-			return nil, errors.New("invalid value passed to newRootValue")
-		}
-
-		storage = nomsRvStorage{st}
+	srv, err := serial.TryGetRootAsRootValue([]byte(v.(types.SerialMessage)), serial.MessagePrefixSz)
+	if err != nil {
+		return nil, err
 	}
+	storage := fbRvStorage{srv}
+
 	ver, ok, err := storage.GetFeatureVersion()
 	if err != nil {
 		return nil, err
@@ -185,7 +177,7 @@ var NewRootValue = func(ctx context.Context, vrw types.ValueReadWriter, ns tree.
 		}
 	}
 
-	return &rootValue{vrw, ns, storage, nil, hash.Hash{}, 0, nil}, nil
+	return &rootValue{vrw: vrw, ns: ns, st: storage}, nil
 }
 
 // EmptyRootValue returns an empty RootValue. This is a variable as it's changed in Doltgres.
@@ -386,12 +378,12 @@ func GenerateTagsForNewColColl(ctx context.Context, root RootValue, tableName st
 // GenerateTagsForNewColumns deterministically generates a slice of new tags that are unique within the history of this root. The names and NomsKinds of
 // the new columns are used to see the tag generator.
 func GenerateTagsForNewColumns(
-	ctx context.Context,
-	root RootValue,
-	tableName TableName,
-	newColNames []string,
-	newColKinds []types.NomsKind,
-	headRoot RootValue,
+		ctx context.Context,
+		root RootValue,
+		tableName TableName,
+		newColNames []string,
+		newColKinds []types.NomsKind,
+		headRoot RootValue,
 ) ([]uint64, error) {
 	if len(newColNames) != len(newColKinds) {
 		return nil, fmt.Errorf("error generating tags, newColNames and newColKinds must be of equal length")
@@ -413,7 +405,7 @@ func GenerateTagsForNewColumns(
 			// Only re-use tags if the noms kind didn't change
 			// TODO: revisit this when new storage format is further along
 			if strings.EqualFold(newColNames[i], col.Name) &&
-				newColKinds[i] == col.TypeInfo.NomsKind() {
+					newColKinds[i] == col.TypeInfo.NomsKind() {
 				newTags[i] = &col.Tag
 				break
 			}
@@ -446,11 +438,11 @@ func GenerateTagsForNewColumns(
 }
 
 func GetExistingColumns(
-	ctx context.Context,
-	root, headRoot RootValue,
-	tableName TableName,
-	newColNames []string,
-	newColKinds []types.NomsKind,
+		ctx context.Context,
+		root, headRoot RootValue,
+		tableName TableName,
+		newColNames []string,
+		newColKinds []types.NomsKind,
 ) ([]schema.Column, error) {
 
 	var existingCols []schema.Column
