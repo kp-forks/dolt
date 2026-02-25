@@ -146,9 +146,9 @@ func createProllyMap(t *testing.T, ctx context.Context, ns tree.NodeStore, data 
 	return m
 }
 
-func putProllyMapValues(t *testing.T, ctx context.Context, ns tree.NodeStore, m prolly.Map, pairs []testTuple) prolly.Map {
+func putProllyMapValues(t *testing.T, ctx context.Context, ns tree.NodeStore, m prolly.Map, data []testTuple) prolly.Map {
 	mut := m.Mutate()
-	for _, p := range pairs {
+	for _, p := range data {
 		err := mut.Put(ctx, buildKeyTuple(ns, p.key), buildValTuple(ns, p.v0, p.v1))
 		require.NoError(t, err)
 	}
