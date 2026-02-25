@@ -554,42 +554,6 @@ func (db *database) WriteCommit(ctx context.Context, ds Dataset, commit *Commit)
 func CommitValue(ctx context.Context, db Database, ds Dataset, v types.Value) (Dataset, error) {
 	return db.Commit(ctx, ds, v, CommitOptions{})
 }
-
-// buildClassicCommitFunc There are a lot of embedded functions in the file, and one of them was duplicated. This builder method gets
-// a function which is intended for use updating a commit in the classic storage format. Hopefully we can delete this soon.
-func buildClassicCommitFunc(db Database, datasetID string, datasetCurrentAddr hash.Hash, newCommitValue types.Value) func(context.Context, types.Map) (types.Map, error) {
-	return func(ctx context.Context, datasets types.Map) (types.Map, error) {
-		curr, hasHead, err := datasets.MaybeGet(ctx, types.String(datasetID))
-		if err != nil {
-			return types.Map{}, err
-		}
-
-		newCommitRef, err := types.NewRef(newCommitValue, db.Format())
-		if err != nil {
-			return types.Map{}, err
-		}
-
-		newCommitValueRef, err := types.ToRefOfValue(newCommitRef, db.Format())
-		if err != nil {
-			return types.Map{}, err
-		}
-
-		if hasHead {
-			currRef := curr.(types.Ref)
-			if currRef.TargetHash() != datasetCurrentAddr {
-				return types.Map{}, ErrMergeNeeded
-			}
-			if currRef.TargetHash() == newCommitValueRef.TargetHash() {
-				return types.Map{}, ErrAlreadyCommitted
-			}
-		} else if datasetCurrentAddr != (hash.Hash{}) {
-			return types.Map{}, ErrMergeNeeded
-		}
-
-		return datasets.Edit().Set(types.String(datasetID), newCommitValueRef).Map(ctx)
-	}
-}
-
 func (db *database) doCommit(ctx context.Context, datasetID string, datasetCurrentAddr hash.Hash, newCommitValue types.Value) error {
 	return db.update(ctx, func(ctx context.Context, am prolly.AddressMap) (prolly.AddressMap, error) {
 		curr, err := am.Get(ctx, datasetID)
