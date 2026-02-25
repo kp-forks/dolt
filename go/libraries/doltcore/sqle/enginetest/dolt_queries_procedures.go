@@ -953,31 +953,3 @@ END
 		},
 	},
 }
-
-var DoltStatusProcedureScripts = []queries.ScriptTest{
-	{
-		Name: "dolt_status detached head is read-only clean",
-		SetUpScript: []string{
-			"call dolt_commit('--allow-empty', '-m', 'empty commit');",
-			"call dolt_tag('tag1');",
-			"set @head_hash = (select hashof('main') limit 1);",
-			"set @status_by_hash = concat('select * from `mydb/', @head_hash, '`.dolt_status;');",
-			"prepare status_by_hash from @status_by_hash;",
-		},
-		Assertions: []queries.ScriptTestAssertion{
-			{
-				Query:    "select * from `mydb/tag1`.dolt_status;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "execute status_by_hash;",
-				Expected: []sql.Row{},
-			},
-			{
-				Query: "select * from `information_schema`.dolt_status;",
-				// Non-versioned database.
-				ExpectedErr: sql.ErrTableNotFound,
-			},
-		},
-	},
-}

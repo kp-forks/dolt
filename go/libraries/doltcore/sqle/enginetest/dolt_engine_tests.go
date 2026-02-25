@@ -514,7 +514,6 @@ func RunStoredProceduresTest(t *testing.T, h DoltEnginetestHarness) {
 func RunDoltStoredProceduresTest(t *testing.T, h DoltEnginetestHarness) {
 	scripts := append(DoltProcedureTests, DoltCleanProcedureScripts...)
 	scripts = append(scripts, DoltBackupProcedureScripts...)
-	scripts = append(scripts, DoltStatusProcedureScripts...)
 	for _, script := range scripts {
 		func() {
 			h := h.NewHarness(t)
@@ -528,7 +527,6 @@ func RunDoltStoredProceduresTest(t *testing.T, h DoltEnginetestHarness) {
 func RunDoltStoredProceduresPreparedTest(t *testing.T, h DoltEnginetestHarness) {
 	scripts := append(DoltProcedureTests, DoltCleanProcedureScripts...)
 	scripts = append(scripts, DoltBackupProcedureScripts...)
-	scripts = append(scripts, DoltStatusProcedureScripts...)
 	for _, script := range scripts {
 		func() {
 			h := h.NewHarness(t)
@@ -664,6 +662,22 @@ func RunDoltScriptsTest(t *testing.T, harness DoltEnginetestHarness) {
 		enginetest.TestScript(t, harness, script)
 		harness.Close()
 		// }()
+	}
+}
+
+func RunDoltDTableScriptsTest(t *testing.T, harness DoltEnginetestHarness) {
+	for _, script := range DoltStatusTableScripts {
+		h := harness.NewHarness(t)
+		enginetest.TestScript(t, h, script)
+		h.Close()
+	}
+}
+
+func RunDoltDTableScriptsPreparedTest(t *testing.T, harness DoltEnginetestHarness) {
+	for _, script := range DoltStatusTableScripts {
+		h := harness.NewHarness(t)
+		enginetest.TestScriptPrepared(t, h, script)
+		h.Close()
 	}
 }
 

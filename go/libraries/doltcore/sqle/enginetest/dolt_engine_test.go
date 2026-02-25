@@ -1235,9 +1235,14 @@ func TestDoltScripts(t *testing.T) {
 	RunDoltScriptsTest(t, harness)
 }
 
-func TestDoltProcedureScripts(t *testing.T) {
-	h := newDoltEnginetestHarness(t)
-	RunDoltProcedureScriptsTest(t, h)
+func TestDoltDTableScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunDoltDTableScriptsTest(t, harness)
+}
+
+func TestDoltDTableScriptsPrepared(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunDoltDTableScriptsPreparedTest(t, harness)
 }
 
 func TestDoltTempTableScripts(t *testing.T) {

@@ -204,7 +204,7 @@ func createPrintData(queryist cli.Queryist, sqlCtx *sql.Context, showIgnoredTabl
 			tableName := row[0].(string)
 			staged := row[1]
 			status := row[2].(string)
-			ignored, err := GetTinyIntColAsBool(row[3])
+			ignored, err := cli.QueryValueAsBool(row[3])
 			if err != nil {
 				return nil, err
 			}
