@@ -52,63 +52,50 @@ type TagOptions struct {
 // persists it, and returns its addr. Also returns a types.Ref to the tag, if
 // the format for |db| is noms.
 func newTag(ctx context.Context, db *database, commitAddr hash.Hash, meta *TagMeta) (hash.Hash, types.Ref, error) {
-	if !db.Format().UsesFlatbuffers() {
-		commitSt, err := db.ReadValue(ctx, commitAddr)
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-		iscommit, err := IsCommit(commitSt)
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-		if !iscommit {
-			return hash.Hash{}, types.Ref{}, errors.New("newTag: commitAddr does not point to a commit.")
-		}
-		commitRef, err := types.NewRef(commitSt, db.Format())
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
+	types.AssertFormat_DOLT(db.Format())
 
-		var metaV types.Struct
-		if meta != nil {
-			var err error
-			metaV, err = meta.toNomsStruct(commitRef.Format())
-			if err != nil {
-				return hash.Hash{}, types.Ref{}, err
-			}
-		} else {
-			metaV = types.EmptyStruct(commitRef.Format())
-		}
-		tagSt, err := tagTemplate.NewStruct(metaV.Format(), []types.Value{metaV, commitRef})
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-
-		tagRef, err := db.WriteValue(ctx, tagSt)
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-
-		ref, err := types.ToRefOfValue(tagRef, db.Format())
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-
-		return ref.TargetHash(), ref, nil
-	} else {
-		data := tag_flatbuffer(commitAddr, meta)
-		r, err := db.WriteValue(ctx, types.SerialMessage(data))
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-
-		ref, err := types.ToRefOfValue(r, db.Format())
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-
-		return ref.TargetHash(), ref, nil
+	commitSt, err := db.ReadValue(ctx, commitAddr)
+	if err != nil {
+		return hash.Hash{}, types.Ref{}, err
 	}
+	iscommit, err := IsCommit(commitSt)
+	if err != nil {
+		return hash.Hash{}, types.Ref{}, err
+	}
+	if !iscommit {
+		return hash.Hash{}, types.Ref{}, errors.New("newTag: commitAddr does not point to a commit.")
+	}
+	commitRef, err := types.NewRef(commitSt, db.Format())
+	if err != nil {
+		return hash.Hash{}, types.Ref{}, err
+	}
+
+	var metaV types.Struct
+	if meta != nil {
+		var err error
+		metaV, err = meta.toNomsStruct(commitRef.Format())
+		if err != nil {
+			return hash.Hash{}, types.Ref{}, err
+		}
+	} else {
+		metaV = types.EmptyStruct(commitRef.Format())
+	}
+	tagSt, err := tagTemplate.NewStruct(metaV.Format(), []types.Value{metaV, commitRef})
+	if err != nil {
+		return hash.Hash{}, types.Ref{}, err
+	}
+
+	tagRef, err := db.WriteValue(ctx, tagSt)
+	if err != nil {
+		return hash.Hash{}, types.Ref{}, err
+	}
+
+	ref, err := types.ToRefOfValue(tagRef, db.Format())
+	if err != nil {
+		return hash.Hash{}, types.Ref{}, err
+	}
+
+	return ref.TargetHash(), ref, nil
 }
 
 func tag_flatbuffer(commitAddr hash.Hash, meta *TagMeta) serial.Message {

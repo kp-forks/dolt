@@ -247,15 +247,10 @@ func decodeRootNomsValue(ctx context.Context, vrw types.ValueReadWriter, ns tree
 
 // isRootValue returns whether the value is a RootValue. This is a variable as it's changed in Doltgres.
 func isRootValue(nbf *types.NomsBinFormat, val types.Value) bool {
-	if nbf.UsesFlatbuffers() {
-		if sm, ok := val.(types.SerialMessage); ok {
-			fileID := serial.GetFileID(sm)
-			return fileID == serial.RootValueFileID || fileID == serial.DoltgresRootValueFileID
-		}
-	} else {
-		if st, ok := val.(types.Struct); ok {
-			return st.Name() == ddbRootStructName
-		}
+	types.AssertFormat_DOLT(nbf)
+	if sm, ok := val.(types.SerialMessage); ok {
+		fileID := serial.GetFileID(sm)
+		return fileID == serial.RootValueFileID || fileID == serial.DoltgresRootValueFileID
 	}
 	return false
 }
@@ -378,12 +373,12 @@ func GenerateTagsForNewColColl(ctx context.Context, root RootValue, tableName st
 // GenerateTagsForNewColumns deterministically generates a slice of new tags that are unique within the history of this root. The names and NomsKinds of
 // the new columns are used to see the tag generator.
 func GenerateTagsForNewColumns(
-		ctx context.Context,
-		root RootValue,
-		tableName TableName,
-		newColNames []string,
-		newColKinds []types.NomsKind,
-		headRoot RootValue,
+	ctx context.Context,
+	root RootValue,
+	tableName TableName,
+	newColNames []string,
+	newColKinds []types.NomsKind,
+	headRoot RootValue,
 ) ([]uint64, error) {
 	if len(newColNames) != len(newColKinds) {
 		return nil, fmt.Errorf("error generating tags, newColNames and newColKinds must be of equal length")
@@ -405,7 +400,7 @@ func GenerateTagsForNewColumns(
 			// Only re-use tags if the noms kind didn't change
 			// TODO: revisit this when new storage format is further along
 			if strings.EqualFold(newColNames[i], col.Name) &&
-					newColKinds[i] == col.TypeInfo.NomsKind() {
+				newColKinds[i] == col.TypeInfo.NomsKind() {
 				newTags[i] = &col.Tag
 				break
 			}
@@ -438,11 +433,11 @@ func GenerateTagsForNewColumns(
 }
 
 func GetExistingColumns(
-		ctx context.Context,
-		root, headRoot RootValue,
-		tableName TableName,
-		newColNames []string,
-		newColKinds []types.NomsKind,
+	ctx context.Context,
+	root, headRoot RootValue,
+	tableName TableName,
+	newColNames []string,
+	newColKinds []types.NomsKind,
 ) ([]schema.Column, error) {
 
 	var existingCols []schema.Column

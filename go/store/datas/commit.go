@@ -233,39 +233,27 @@ func newCommitForValue(ctx context.Context, cs chunks.ChunkStore, vrw types.Valu
 }
 
 func commitPtr(nbf *types.NomsBinFormat, v types.Value, r *types.Ref) (*Commit, error) {
-	if nbf.UsesFlatbuffers() {
-		bs := []byte(v.(types.SerialMessage))
-		var cm serial.Commit
-		err := serial.InitCommitRoot(&cm, bs, serial.MessagePrefixSz)
-		if err != nil {
-			return nil, err
-		}
-		var addr hash.Hash
-		if r != nil {
-			addr = r.TargetHash()
-		} else {
-			addr, err = v.Hash(nbf)
-			if err != nil {
-				return nil, err
-			}
-		}
-		return &Commit{
-			val:    v,
-			height: cm.Height(),
-			addr:   addr,
-		}, nil
+	types.AssertFormat_DOLT(nbf)
+
+	bs := []byte(v.(types.SerialMessage))
+	var cm serial.Commit
+	err := serial.InitCommitRoot(&cm, bs, serial.MessagePrefixSz)
+	if err != nil {
+		return nil, err
 	}
-	if r == nil {
-		rv, err := types.NewRef(v, nbf)
+	var addr hash.Hash
+	if r != nil {
+		addr = r.TargetHash()
+	} else {
+		addr, err = v.Hash(nbf)
 		if err != nil {
 			return nil, err
 		}
-		r = &rv
 	}
 	return &Commit{
 		val:    v,
-		height: r.Height(),
-		addr:   r.TargetHash(),
+		height: cm.Height(),
+		addr:   addr,
 	}, nil
 }
 

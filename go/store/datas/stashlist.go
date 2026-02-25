@@ -16,7 +16,6 @@ package datas
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -177,9 +176,7 @@ func GetHashListFromStashList(ctx context.Context, ns tree.NodeStore, val types.
 // new StashList address map, if there is none exists yet (dataset head is null). Otherwise, it returns the address map
 // that corresponds to given root hash value.
 func LoadStashList(ctx context.Context, nbf *types.NomsBinFormat, ns tree.NodeStore, vr types.ValueReader, ds Dataset) (*StashList, error) {
-	if !nbf.UsesFlatbuffers() {
-		return nil, errors.New("loadStashList: stash is not supported for old storage format")
-	}
+	types.AssertFormat_DOLT(nbf)
 
 	rootHash, hasHead := ds.MaybeHeadAddr()
 	if !hasHead {

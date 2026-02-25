@@ -283,42 +283,21 @@ func (ms *MergeState) FromCommit(ctx context.Context, vr types.ValueReader) (*Co
 }
 
 func (ms *MergeState) FromCommitSpec(ctx context.Context, vr types.ValueReader) (string, error) {
-	if vr.Format().UsesFlatbuffers() {
-		return ms.fromCommitSpec, nil
-	}
+	types.AssertFormat_DOLT(vr.Format())
 
-	if ms.nomsMergeState == nil {
-		err := ms.loadIfNeeded(ctx, vr)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	commitSpecStr, ok, err := ms.nomsMergeState.MaybeGet(mergeStateCommitSpecField)
-	if err != nil {
-		return "", err
-	}
-	if !ok {
-		// Allow noms merge state to be backwards compatible with merge states
-		// that previously did not have a commit spec string.
-		return "", nil
-	}
-
-	return string(commitSpecStr.(types.String)), nil
+	return ms.fromCommitSpec, nil
 }
 
 func (ms *MergeState) IsCherryPick(_ context.Context, vr types.ValueReader) (bool, error) {
-	if vr.Format().UsesFlatbuffers() {
-		return ms.isCherryPick, nil
-	}
-	return false, nil
+	types.AssertFormat_DOLT(vr.Format())
+
+	return ms.isCherryPick, nil
 }
 
 func (ms *MergeState) UnmergableTables(ctx context.Context, vr types.ValueReader) ([]string, error) {
-	if vr.Format().UsesFlatbuffers() {
-		return ms.unmergableTables, nil
-	}
-	return nil, nil
+	types.AssertFormat_DOLT(vr.Format())
+
+	return ms.unmergableTables, nil
 }
 
 type dsHead interface {

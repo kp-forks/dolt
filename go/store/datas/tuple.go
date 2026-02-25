@@ -16,7 +16,6 @@ package datas
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	flatbuffers "github.com/dolthub/flatbuffers/v23/go"
@@ -37,9 +36,7 @@ func (t Tuple) Bytes() []byte {
 
 // LoadTuple attempts to dereference a database's Tuple Dataset into a typed Tuple object.
 func LoadTuple(ctx context.Context, nbf *types.NomsBinFormat, ns tree.NodeStore, vr types.ValueReader, ds Dataset) (*Tuple, error) {
-	if !nbf.UsesFlatbuffers() {
-		return nil, errors.New("loadTuple: Tuple are not supported for old storage format")
-	}
+	types.AssertFormat_DOLT(nbf)
 
 	rootHash, hasHead := ds.MaybeHeadAddr()
 	if !hasHead {

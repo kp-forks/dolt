@@ -79,11 +79,9 @@ var sharePool = pool.NewBuffPool()
 
 // NewTable returns a new Table.
 func NewTable(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore, sch schema.Schema, rows Index, indexes IndexSet, autoIncVal types.Value) (Table, error) {
-	if vrw.Format().UsesFlatbuffers() {
-		return newDoltDevTable(ctx, vrw, ns, sch, rows, indexes, autoIncVal)
-	}
+	types.AssertFormat_DOLT(vrw.Format())
 
-	panic("Unsupported format: " + vrw.Format().VersionString())
+	return newDoltDevTable(ctx, vrw, ns, sch, rows, indexes, autoIncVal)
 }
 
 // TableFromAddr deserializes the table in the chunk at |addr|.

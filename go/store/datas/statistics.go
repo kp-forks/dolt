@@ -51,9 +51,7 @@ func (s *Statistics) Count() (int, error) {
 
 // LoadStatistics attempts to dereference a database's statistics Dataset into a typed Statistics object.
 func LoadStatistics(ctx context.Context, nbf *types.NomsBinFormat, ns tree.NodeStore, vr types.ValueReader, ds Dataset) (*Statistics, error) {
-	if !nbf.UsesFlatbuffers() {
-		return nil, errors.New("loadStatistics: statistics are not supported for old storage format")
-	}
+	types.AssertFormat_DOLT(nbf)
 
 	rootHash, hasHead := ds.MaybeHeadAddr()
 	if !hasHead {

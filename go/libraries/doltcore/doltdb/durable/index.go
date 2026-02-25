@@ -353,15 +353,13 @@ func (i prollyIndex) DebugString(ctx context.Context, ns tree.NodeStore, schema 
 
 // NewIndexSet returns an empty IndexSet.
 func NewIndexSet(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore) (IndexSet, error) {
-	if vrw.Format().UsesFlatbuffers() {
-		emptyam, err := prolly.NewEmptyAddressMap(ns)
-		if err != nil {
-			return nil, err
-		}
-		return doltDevIndexSet{vrw, ns, emptyam}, nil
-	}
+	types.AssertFormat_DOLT(vrw.Format())
 
-	panic("Unsupported format " + vrw.Format().VersionString())
+	emptyam, err := prolly.NewEmptyAddressMap(ns)
+	if err != nil {
+		return nil, err
+	}
+	return doltDevIndexSet{vrw, ns, emptyam}, nil
 }
 
 func NewIndexSetWithEmptyIndexes(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore, sch schema.Schema) (IndexSet, error) {
