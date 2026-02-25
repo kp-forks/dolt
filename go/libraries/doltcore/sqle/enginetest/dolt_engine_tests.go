@@ -2195,6 +2195,14 @@ func RunDoltTestsTableTests(t *testing.T, harness DoltEnginetestHarness) {
 			enginetest.TestScript(t, harness, script)
 		})
 	}
+
+	for _, script := range DoltTestsValidationScripts {
+		t.Run(script.Name, func(t *testing.T) {
+			harness = harness.NewHarness(t)
+			defer harness.Close()
+			enginetest.TestScript(t, harness, script)
+		})
+	}
 }
 
 func RunBranchActivityTests(t *testing.T, harness DoltEnginetestHarness) {

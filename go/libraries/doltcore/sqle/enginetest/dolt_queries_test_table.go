@@ -15,6 +15,8 @@
 package enginetest
 
 import (
+	"fmt"
+
 	"github.com/dolthub/go-mysql-server/enginetest/queries"
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/types"
@@ -524,3 +526,69 @@ var DoltTestRunFunctionScripts = []queries.ScriptTest{
 		},
 	},
 }
+
+// doltTestsValidationCase describes a single insert validation test for dolt_tests.
+type doltTestsValidationCase struct {
+	assertionType       string
+	assertionComparator string
+	expectErr           bool
+}
+
+// doltTestsValidationCases is the matrix of inputs and expected outcomes for
+// dolt_tests schema validation. Invalid assertion_type and assertion_comparator
+// values should be rejected at INSERT time rather than silently accepted and
+// only caught at test-run time.
+var doltTestsValidationCases = []doltTestsValidationCase{
+	// Valid assertion_type with every valid comparator.
+	{"expected_rows", "==", false},
+	{"expected_rows", "!=", false},
+	{"expected_rows", "<", false},
+	{"expected_rows", ">", false},
+	{"expected_rows", "<=", false},
+	{"expected_rows", ">=", false},
+	// Each remaining valid assertion_type with at least one comparator.
+	{"expected_columns", "==", false},
+	{"expected_single_value", "==", false},
+
+	// Invalid assertion_type, valid comparator.
+	{"row_count", "==", true},           // common mistake (issue #10568)
+	{"expected_row", "==", true},        // typo: missing trailing 's'
+	{"EXPECTED_ROWS", "==", true},       // wrong case
+	{"count", "==", true},               // too short / wrong name
+	{"", "==", true},                    // empty string
+	{"expected_rows_count", "==", true}, // plausible but wrong compound name
+
+	// Valid assertion_type, invalid comparator.
+	{"expected_rows", "=", true},    // SQL-style equals (common mistake, issue #10568)
+	{"expected_rows", "===", true},  // JavaScript-style strict equals
+	{"expected_rows", "eq", true},   // word form
+	{"expected_rows", "!==", true},  // wrong not-equals
+	{"expected_rows", "LIKE", true}, // SQL keyword
+	{"expected_rows", "", true},     // empty string
+
+	// Invalid both fields.
+	{"row_count", "=", true},
+	{"count", "eq", true},
+}
+
+// DoltTestsValidationScripts is generated from doltTestsValidationCases and
+// verifies that dolt_tests rejects invalid assertion_type and
+// assertion_comparator values at INSERT time.
+var DoltTestsValidationScripts = func() []queries.ScriptTest {
+	scripts := make([]queries.ScriptTest, len(doltTestsValidationCases))
+	for i, tc := range doltTestsValidationCases {
+		q := fmt.Sprintf(
+			"INSERT INTO dolt_tests VALUES ('test_%d', 'grp', 'SELECT 1', '%s', '%s', '0')",
+			i, tc.assertionType, tc.assertionComparator,
+		)
+		a := queries.ScriptTestAssertion{Query: q}
+		if tc.expectErr {
+			a.ExpectedErr = types.ErrConvertingToEnum
+		}
+		scripts[i] = queries.ScriptTest{
+			Name:       fmt.Sprintf("validation: assertionType=%q comparator=%q expectErr=%v", tc.assertionType, tc.assertionComparator, tc.expectErr),
+			Assertions: []queries.ScriptTestAssertion{a},
+		}
+	}
+	return scripts
+}()
