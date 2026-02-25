@@ -583,7 +583,7 @@ var DoltTestsValidationScripts = func() []queries.ScriptTest {
 		)
 		a := queries.ScriptTestAssertion{Query: q}
 		if tc.expectErr {
-			a.ExpectedErr = types.ErrConvertingToEnum
+			a.ExpectedErr = sql.ErrCheckConstraintViolated
 		}
 		scripts[i] = queries.ScriptTest{
 			Name:       fmt.Sprintf("validation: assertionType=%q comparator=%q expectErr=%v", tc.assertionType, tc.assertionComparator, tc.expectErr),
