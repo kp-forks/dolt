@@ -297,8 +297,6 @@ func (m Map) isPrimitive() bool {
 	return false
 }
 
-type mapIterAllCallback func(key, value Value) error
-
 func (m Map) Edit() *MapEditor {
 	return NewMapEditor(m)
 }
