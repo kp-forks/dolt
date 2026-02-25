@@ -35,8 +35,6 @@ func CreateSetTypeFromSqlSetType(sqlSetType sql.SetType) TypeInfo {
 	return &setType{sqlSetType}
 }
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *setType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -55,14 +53,10 @@ func (ti *setType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *setType) NomsKind() types.NomsKind {
 	return types.UintKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *setType) String() string {

@@ -29,8 +29,6 @@ var _ TypeInfo = (*boolType)(nil)
 
 var BoolType TypeInfo = &boolType{gmstypes.MustCreateBitType(1)}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *boolType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -40,14 +38,10 @@ func (ti *boolType) Equals(other TypeInfo) bool {
 	return ok
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *boolType) NomsKind() types.NomsKind {
 	return types.BoolKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *boolType) String() string {

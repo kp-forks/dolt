@@ -30,8 +30,6 @@ type inlineBlobType struct {
 
 var _ TypeInfo = (*inlineBlobType)(nil)
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *inlineBlobType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -44,14 +42,10 @@ func (ti *inlineBlobType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *inlineBlobType) NomsKind() types.NomsKind {
 	return types.InlineBlobKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *inlineBlobType) String() string {

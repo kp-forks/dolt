@@ -27,8 +27,6 @@ var _ TypeInfo = (*tupleType)(nil)
 // This is for internal use only. Used in merge conflicts.
 var TupleType = &tupleType{}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *tupleType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -38,14 +36,10 @@ func (ti *tupleType) Equals(other TypeInfo) bool {
 	return ok
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *tupleType) NomsKind() types.NomsKind {
 	return types.TupleKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *tupleType) String() string {

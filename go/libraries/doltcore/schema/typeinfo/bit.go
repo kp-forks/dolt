@@ -54,8 +54,6 @@ func CreateBitTypeFromParams(params map[string]string) (TypeInfo, error) {
 	}
 }
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *bitType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -67,14 +65,10 @@ func (ti *bitType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *bitType) NomsKind() types.NomsKind {
 	return types.UintKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *bitType) String() string {

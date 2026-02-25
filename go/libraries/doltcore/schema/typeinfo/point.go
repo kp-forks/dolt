@@ -31,8 +31,6 @@ var _ TypeInfo = (*pointType)(nil)
 
 var PointType = &pointType{gmstypes.PointType{}}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *pointType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -45,14 +43,10 @@ func (ti *pointType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *pointType) NomsKind() types.NomsKind {
 	return types.PointKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *pointType) String() string {

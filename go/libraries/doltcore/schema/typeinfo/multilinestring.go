@@ -31,8 +31,6 @@ var _ TypeInfo = (*multilinestringType)(nil)
 
 var MultiLineStringType = &multilinestringType{gmstypes.MultiLineStringType{}}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *multilinestringType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -45,14 +43,10 @@ func (ti *multilinestringType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *multilinestringType) NomsKind() types.NomsKind {
 	return types.MultiLineStringKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *multilinestringType) String() string {

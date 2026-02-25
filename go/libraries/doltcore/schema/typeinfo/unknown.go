@@ -28,21 +28,15 @@ var _ TypeInfo = (*unknownType)(nil)
 
 var UnknownType TypeInfo = &unknownType{}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *unknownType) Equals(TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *unknownType) NomsKind() types.NomsKind {
 	return types.UnknownKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *unknownType) String() string {

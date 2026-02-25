@@ -37,8 +37,6 @@ var (
 	Int64Type = &intType{gmstypes.Int64}
 )
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *intType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -51,14 +49,10 @@ func (ti *intType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *intType) NomsKind() types.NomsKind {
 	return types.IntKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *intType) String() string {

@@ -47,8 +47,6 @@ func CreateVarStringTypeFromSqlType(stringType sql.StringType) TypeInfo {
 	return &varStringType{stringType}
 }
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *varStringType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -62,14 +60,10 @@ func (ti *varStringType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *varStringType) NomsKind() types.NomsKind {
 	return types.StringKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *varStringType) String() string {

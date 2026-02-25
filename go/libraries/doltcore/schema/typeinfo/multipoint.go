@@ -31,8 +31,6 @@ var _ TypeInfo = (*multipointType)(nil)
 
 var MultiPointType = &multipointType{gmstypes.MultiPointType{}}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *multipointType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -45,14 +43,10 @@ func (ti *multipointType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *multipointType) NomsKind() types.NomsKind {
 	return types.MultiPointKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *multipointType) String() string {

@@ -43,8 +43,6 @@ var (
 	LongTextType TypeInfo = &blobStringType{sqlStringType: gmstypes.LongText}
 )
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *blobStringType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -57,14 +55,10 @@ func (ti *blobStringType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *blobStringType) NomsKind() types.NomsKind {
 	return types.BlobKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *blobStringType) String() string {

@@ -28,22 +28,16 @@ type jsonType struct {
 var _ TypeInfo = (*jsonType)(nil)
 var JSONType = &jsonType{sqltypes.JsonType{}}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *jsonType) Equals(other TypeInfo) bool {
 	_, ok := other.(*jsonType)
 	return ok
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *jsonType) NomsKind() types.NomsKind {
 	return types.JSONKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *jsonType) String() string {

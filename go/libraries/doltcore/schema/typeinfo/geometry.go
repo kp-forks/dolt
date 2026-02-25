@@ -31,8 +31,6 @@ var _ TypeInfo = (*geometryType)(nil)
 
 var GeometryType = &geometryType{gmstypes.GeometryType{}}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *geometryType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -45,14 +43,10 @@ func (ti *geometryType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *geometryType) NomsKind() types.NomsKind {
 	return types.GeometryKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *geometryType) String() string {

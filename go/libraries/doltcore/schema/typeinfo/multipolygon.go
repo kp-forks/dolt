@@ -31,8 +31,6 @@ var _ TypeInfo = (*multipolygonType)(nil)
 
 var MultiPolygonType = &multipolygonType{gmstypes.MultiPolygonType{}}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *multipolygonType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -45,14 +43,10 @@ func (ti *multipolygonType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *multipolygonType) NomsKind() types.NomsKind {
 	return types.MultiPolygonKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *multipolygonType) String() string {

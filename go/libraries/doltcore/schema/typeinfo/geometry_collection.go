@@ -31,8 +31,6 @@ var _ TypeInfo = (*geomcollType)(nil)
 
 var GeomCollType = &geomcollType{gmstypes.GeomCollType{}}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *geomcollType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -45,14 +43,10 @@ func (ti *geomcollType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *geomcollType) NomsKind() types.NomsKind {
 	return types.GeometryCollectionKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *geomcollType) String() string {

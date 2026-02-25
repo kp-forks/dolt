@@ -31,8 +31,6 @@ var _ TypeInfo = (*polygonType)(nil)
 
 var PolygonType = &polygonType{gmstypes.PolygonType{}}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *polygonType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -45,14 +43,10 @@ func (ti *polygonType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *polygonType) NomsKind() types.NomsKind {
 	return types.PolygonKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *polygonType) String() string {

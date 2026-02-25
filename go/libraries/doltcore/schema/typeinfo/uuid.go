@@ -30,8 +30,6 @@ var _ TypeInfo = (*uuidType)(nil)
 
 var UuidType = &uuidType{gmstypes.MustCreateString(sqltypes.Char, 36, sql.Collation_ascii_bin)}
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *uuidType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -41,14 +39,10 @@ func (ti *uuidType) Equals(other TypeInfo) bool {
 	return ok
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *uuidType) NomsKind() types.NomsKind {
 	return types.UUIDKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *uuidType) String() string {

@@ -40,8 +40,6 @@ func CreateEnumTypeFromSqlEnumType(sqlEnumType sql.EnumType) TypeInfo {
 	return &enumType{sqlEnumType}
 }
 
-// ReadFrom reads a go value from a noms types.CodecReader directly
-
 // Equals implements TypeInfo interface.
 func (ti *enumType) Equals(other TypeInfo) bool {
 	if other == nil {
@@ -60,14 +58,10 @@ func (ti *enumType) Equals(other TypeInfo) bool {
 	return false
 }
 
-// IsValid implements TypeInfo interface.
-
 // NomsKind implements TypeInfo interface.
 func (ti *enumType) NomsKind() types.NomsKind {
 	return types.UintKind
 }
-
-// Promote implements TypeInfo interface.
 
 // String implements TypeInfo interface.
 func (ti *enumType) String() string {
