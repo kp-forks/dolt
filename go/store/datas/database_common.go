@@ -592,18 +592,18 @@ func (db *database) Tag(ctx context.Context, ds Dataset, commitAddr hash.Hash, o
 		ctx,
 		ds,
 		func(ds Dataset) error {
-			addr, tagRef, err := newTag(ctx, db, commitAddr, opts.Meta)
+			addr, _, err := newTag(ctx, db, commitAddr, opts.Meta)
 			if err != nil {
 				return err
 			}
-			return db.doTag(ctx, ds.ID(), addr, tagRef)
+			return db.doTag(ctx, ds.ID(), addr)
 		},
 	)
 }
 
 // doTag manages concurrent access the single logical piece of mutable state: the current Root. It uses
 // the same optimistic writing algorithm as doCommit (see above).
-func (db *database) doTag(ctx context.Context, datasetID string, tagAddr hash.Hash, tagRef types.Ref) error {
+func (db *database) doTag(ctx context.Context, datasetID string, tagAddr hash.Hash) error {
 	return db.update(ctx, func(ctx context.Context, am prolly.AddressMap) (prolly.AddressMap, error) {
 		curr, err := am.Get(ctx, datasetID)
 		if err != nil {
@@ -679,21 +679,21 @@ func (db *database) UpdateWorkingSet(ctx context.Context, ds Dataset, workingSet
 		ctx,
 		ds,
 		func(ds Dataset) error {
-			addr, ref, err := newWorkingSet(ctx, db, workingSetSpec)
+			addr, _, err := newWorkingSet(ctx, db, workingSetSpec)
 			if err != nil {
 				return err
 			}
-			return db.doUpdateWorkingSet(ctx, ds.ID(), addr, ref, prevHash)
+			return db.doUpdateWorkingSet(ctx, ds.ID(), addr, prevHash)
 		},
 	)
 }
 
-// Update the entry in the datasets map for |datasetID| to point to a ref of
+// Update the entry in the datasets map for |datasetID| to point to the address of a new
 // |workingSet|. Unlike |doCommit|, |doTag|, etc., this method requires a
 // compare-and-set for the current target hash of the datasets entry, and will
 // return an error if the application is working with a stale value for the
 // workingset.
-func (db *database) doUpdateWorkingSet(ctx context.Context, datasetID string, addr hash.Hash, ref types.Ref, currHash hash.Hash) error {
+func (db *database) doUpdateWorkingSet(ctx context.Context, datasetID string, addr hash.Hash, currHash hash.Hash) error {
 	return db.update(ctx, func(ctx context.Context, am prolly.AddressMap) (prolly.AddressMap, error) {
 		curr, err := am.Get(ctx, datasetID)
 		if err != nil {
@@ -709,25 +709,6 @@ func (db *database) doUpdateWorkingSet(ctx context.Context, datasetID string, ad
 		}
 		return ae.Flush(ctx)
 	})
-}
-
-// assertDatasetHash returns true if the hash of the dataset matches the one given. Use an empty hash for a dataset you
-// expect not to exist.
-// Typically this is called using optimistic locking by the caller in order to implement atomic test-and-set semantics.
-func assertDatasetHash(
-	ctx context.Context,
-	datasets types.Map,
-	datasetID string,
-	currHash hash.Hash,
-) (bool, error) {
-	curr, ok, err := datasets.MaybeGet(ctx, types.String(datasetID))
-	if err != nil {
-		return false, err
-	}
-	if !ok {
-		return currHash.IsEmpty(), nil
-	}
-	return curr.(types.Ref).TargetHash().Equal(currHash), nil
 }
 
 func (db *database) PersistGhostCommitIDs(ctx context.Context, ghosts hash.HashSet) error {
@@ -747,10 +728,10 @@ func (db *database) PersistGhostCommitIDs(ctx context.Context, ghosts hash.HashS
 // global locking mechanism as UpdateWorkingSet.
 // The current dataset head will be filled in as the first parent of the new commit if not already present.
 func (db *database) CommitWithWorkingSet(
-	ctx context.Context,
-	commitDS, workingSetDS Dataset,
-	val types.Value, workingSetSpec WorkingSetSpec,
-	prevWsHash hash.Hash, opts CommitOptions,
+		ctx context.Context,
+		commitDS, workingSetDS Dataset,
+		val types.Value, workingSetSpec WorkingSetSpec,
+		prevWsHash hash.Hash, opts CommitOptions,
 ) (Dataset, Dataset, error) {
 	wsAddr, _, err := newWorkingSet(ctx, db, workingSetSpec)
 	if err != nil {
@@ -839,8 +820,8 @@ func (db *database) Delete(ctx context.Context, ds Dataset, wsIDStr string) (Dat
 }
 
 func (db *database) update(
-	ctx context.Context,
-	editFB func(context.Context, prolly.AddressMap) (prolly.AddressMap, error),
+		ctx context.Context,
+		editFB func(context.Context, prolly.AddressMap) (prolly.AddressMap, error),
 ) error {
 	var (
 		err  error
