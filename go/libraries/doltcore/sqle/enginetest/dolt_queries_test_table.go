@@ -488,7 +488,7 @@ var DoltTestRunFunctionScripts = []queries.ScriptTest{
 	{
 		Name: "Can not run multiple queries in one test",
 		SetUpScript: []string{
-			"INSERT INTO dolt_tests VALUES ('should fail', '', 'select * from dolt_log; show tables;', 'expected_orws', '==', '0')",
+			"INSERT INTO dolt_tests VALUES ('should fail', '', 'select * from dolt_log; show tables;', 'expected_rows', '==', '0')",
 		},
 		Assertions: []queries.ScriptTestAssertion{
 			{
