@@ -46,15 +46,6 @@ func (ti *timeType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *timeType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.Int); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *timeType) NomsKind() types.NomsKind {
@@ -62,9 +53,6 @@ func (ti *timeType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *timeType) Promote() TypeInfo {
-	return &timeType{ti.sqlTimeType.Promote().(gmstypes.TimeType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *timeType) String() string {

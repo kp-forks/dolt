@@ -48,15 +48,6 @@ func (ti *geomcollType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *geomcollType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.GeomColl); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *geomcollType) NomsKind() types.NomsKind {
@@ -64,9 +55,6 @@ func (ti *geomcollType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *geomcollType) Promote() TypeInfo {
-	return &geomcollType{ti.sqlGeomCollType.Promote().(gmstypes.GeomCollType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *geomcollType) String() string {

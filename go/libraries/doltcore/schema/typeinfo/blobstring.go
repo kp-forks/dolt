@@ -58,17 +58,6 @@ func (ti *blobStringType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *blobStringType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Blob); ok {
-		if int64(val.Len()) <= ti.sqlStringType.MaxByteLength() {
-			return true
-		}
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *blobStringType) NomsKind() types.NomsKind {
@@ -76,9 +65,6 @@ func (ti *blobStringType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *blobStringType) Promote() TypeInfo {
-	return &blobStringType{ti.sqlStringType.Promote().(sql.StringType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *blobStringType) String() string {

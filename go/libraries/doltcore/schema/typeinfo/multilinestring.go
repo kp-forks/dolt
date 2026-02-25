@@ -48,15 +48,6 @@ func (ti *multilinestringType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *multilinestringType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.MultiLineString); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *multilinestringType) NomsKind() types.NomsKind {
@@ -64,9 +55,6 @@ func (ti *multilinestringType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *multilinestringType) Promote() TypeInfo {
-	return &multilinestringType{ti.sqlMultiLineStringType.Promote().(gmstypes.MultiLineStringType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *multilinestringType) String() string {

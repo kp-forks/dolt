@@ -41,13 +41,6 @@ func (ti *tupleType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *tupleType) IsValid(v types.Value) bool {
-	if v == nil {
-		return true
-	}
-	_, ok := v.(types.Value)
-	return ok
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *tupleType) NomsKind() types.NomsKind {
@@ -55,9 +48,6 @@ func (ti *tupleType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *tupleType) Promote() TypeInfo {
-	return ti
-}
 
 // String implements TypeInfo interface.
 func (ti *tupleType) String() string {

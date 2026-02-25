@@ -69,19 +69,6 @@ func (ti *bitType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *bitType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Uint); ok {
-		_, _, err := ti.sqlBitType.Convert(context.Background(), uint64(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *bitType) NomsKind() types.NomsKind {
@@ -89,9 +76,6 @@ func (ti *bitType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *bitType) Promote() TypeInfo {
-	return &bitType{ti.sqlBitType.Promote().(gmstypes.BitType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *bitType) String() string {

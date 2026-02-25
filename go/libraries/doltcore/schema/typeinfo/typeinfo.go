@@ -29,14 +29,8 @@ type TypeInfo interface {
 	// Equals returns whether the given TypeInfo is equivalent to this TypeInfo.
 	Equals(other TypeInfo) bool
 
-	// IsValid takes in a types.Value and returns whether it is valid for this type.
-	IsValid(v types.Value) bool
-
 	// NomsKind returns the NomsKind that best matches this TypeInfo.
 	NomsKind() types.NomsKind
-
-	// Promote will promote the current TypeInfo to the largest representing TypeInfo of the same kind, such as Int8 to Int64.
-	Promote() TypeInfo
 
 	// ToSqlType returns the TypeInfo as a sql.Type. If an exact match is able to be made then that is
 	// the one returned, otherwise the sql.Type is the closest match possible.

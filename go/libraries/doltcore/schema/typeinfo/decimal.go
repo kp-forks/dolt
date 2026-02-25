@@ -81,21 +81,6 @@ func (ti *decimalType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *decimalType) IsValid(v types.Value) bool {
-	// TODO: Add context parameter
-	ctx := sql.NewEmptyContext()
-	if val, ok := v.(types.Decimal); ok {
-		_, _, err := ti.sqlDecimalType.Convert(ctx, decimal.Decimal(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *decimalType) NomsKind() types.NomsKind {
@@ -103,9 +88,6 @@ func (ti *decimalType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *decimalType) Promote() TypeInfo {
-	return &decimalType{ti.sqlDecimalType.Promote().(sql.DecimalType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *decimalType) String() string {

@@ -44,15 +44,6 @@ func (ti *uuidType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *uuidType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.UUID); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *uuidType) NomsKind() types.NomsKind {
@@ -60,9 +51,6 @@ func (ti *uuidType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *uuidType) Promote() TypeInfo {
-	return ti
-}
 
 // String implements TypeInfo interface.
 func (ti *uuidType) String() string {

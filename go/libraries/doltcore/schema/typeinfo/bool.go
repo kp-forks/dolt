@@ -43,15 +43,6 @@ func (ti *boolType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *boolType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.Bool); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *boolType) NomsKind() types.NomsKind {
@@ -59,9 +50,6 @@ func (ti *boolType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *boolType) Promote() TypeInfo {
-	return ti
-}
 
 // String implements TypeInfo interface.
 func (ti *boolType) String() string {

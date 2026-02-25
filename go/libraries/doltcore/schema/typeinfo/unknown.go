@@ -36,9 +36,6 @@ func (ti *unknownType) Equals(TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *unknownType) IsValid(types.Value) bool {
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *unknownType) NomsKind() types.NomsKind {
@@ -46,9 +43,6 @@ func (ti *unknownType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *unknownType) Promote() TypeInfo {
-	return ti
-}
 
 // String implements TypeInfo interface.
 func (ti *unknownType) String() string {

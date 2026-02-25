@@ -48,15 +48,6 @@ func (ti *multipointType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *multipointType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.MultiPoint); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *multipointType) NomsKind() types.NomsKind {
@@ -64,9 +55,6 @@ func (ti *multipointType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *multipointType) Promote() TypeInfo {
-	return &multipointType{ti.sqlMultiPointType.Promote().(gmstypes.MultiPointType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *multipointType) String() string {

@@ -48,15 +48,6 @@ func (ti *linestringType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *linestringType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.LineString); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *linestringType) NomsKind() types.NomsKind {
@@ -64,9 +55,6 @@ func (ti *linestringType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *linestringType) Promote() TypeInfo {
-	return &linestringType{ti.sqlLineStringType.Promote().(gmstypes.LineStringType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *linestringType) String() string {

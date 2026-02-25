@@ -66,21 +66,6 @@ func (ti *varStringType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *varStringType) IsValid(v types.Value) bool {
-	// TODO: Add context parameter or delete typeinfo package
-	ctx := context.Background()
-	if val, ok := v.(types.String); ok {
-		_, _, err := ti.sqlStringType.Convert(ctx, string(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *varStringType) NomsKind() types.NomsKind {
@@ -88,9 +73,6 @@ func (ti *varStringType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *varStringType) Promote() TypeInfo {
-	return &varStringType{ti.sqlStringType.Promote().(sql.StringType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *varStringType) String() string {

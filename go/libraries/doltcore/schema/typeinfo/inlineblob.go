@@ -46,15 +46,6 @@ func (ti *inlineBlobType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *inlineBlobType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.InlineBlob); ok {
-		return int64(len(val)) <= ti.sqlBinaryType.MaxByteLength()
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *inlineBlobType) NomsKind() types.NomsKind {
@@ -62,9 +53,6 @@ func (ti *inlineBlobType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *inlineBlobType) Promote() TypeInfo {
-	return &inlineBlobType{ti.sqlBinaryType.Promote().(sql.StringType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *inlineBlobType) String() string {

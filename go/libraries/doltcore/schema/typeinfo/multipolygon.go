@@ -48,15 +48,6 @@ func (ti *multipolygonType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *multipolygonType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.MultiPolygon); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *multipolygonType) NomsKind() types.NomsKind {
@@ -64,9 +55,6 @@ func (ti *multipolygonType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *multipolygonType) Promote() TypeInfo {
-	return &multipolygonType{ti.sqlMultiPolygonType.Promote().(gmstypes.MultiPolygonType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *multipolygonType) String() string {

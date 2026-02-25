@@ -54,17 +54,6 @@ func (ti *vectorType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *vectorType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Blob); ok {
-		if int(val.Len()) == ti.sqlVectorType.Dimensions*int(values.Float32Size) {
-			return true
-		}
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *vectorType) NomsKind() types.NomsKind {
@@ -72,9 +61,6 @@ func (ti *vectorType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *vectorType) Promote() TypeInfo {
-	return ti
-}
 
 // String implements TypeInfo interface.
 func (ti *vectorType) String() string {

@@ -50,21 +50,6 @@ func (ti *floatType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *floatType) IsValid(v types.Value) bool {
-	// TODO: Add context parameter
-	ctx := sql.NewEmptyContext()
-	if val, ok := v.(types.Float); ok {
-		_, _, err := ti.sqlFloatType.Convert(ctx, float64(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *floatType) NomsKind() types.NomsKind {
@@ -72,9 +57,6 @@ func (ti *floatType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *floatType) Promote() TypeInfo {
-	return &floatType{ti.sqlFloatType.Promote().(sql.NumberType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *floatType) String() string {

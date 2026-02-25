@@ -40,19 +40,6 @@ func (ti *jsonType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *jsonType) IsValid(v types.Value) bool {
-	if v == nil {
-		return true
-	}
-	switch v.(type) {
-	case types.JSON:
-		return true
-	case types.Null:
-		return true
-	default:
-		return false
-	}
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *jsonType) NomsKind() types.NomsKind {
@@ -60,9 +47,6 @@ func (ti *jsonType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *jsonType) Promote() TypeInfo {
-	return &jsonType{ti.jsonType.Promote().(sqltypes.JsonType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *jsonType) String() string {

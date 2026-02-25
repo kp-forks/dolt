@@ -48,15 +48,6 @@ func (ti *polygonType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *polygonType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.Polygon); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *polygonType) NomsKind() types.NomsKind {
@@ -64,9 +55,6 @@ func (ti *polygonType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *polygonType) Promote() TypeInfo {
-	return &polygonType{ti.sqlPolygonType.Promote().(gmstypes.PolygonType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *polygonType) String() string {

@@ -46,21 +46,6 @@ func (ti *yearType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *yearType) IsValid(v types.Value) bool {
-	// TODO: Add context parameter or delete typeinfo package
-	ctx := context.Background()
-	if val, ok := v.(types.Int); ok {
-		_, _, err := ti.sqlYearType.Convert(ctx, int64(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *yearType) NomsKind() types.NomsKind {
@@ -68,9 +53,6 @@ func (ti *yearType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *yearType) Promote() TypeInfo {
-	return &yearType{ti.sqlYearType.Promote().(sql.YearType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *yearType) String() string {

@@ -50,17 +50,6 @@ func (ti *varBinaryType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *varBinaryType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Blob); ok {
-		if int64(val.Len()) <= ti.sqlBinaryType.MaxByteLength() {
-			return true
-		}
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *varBinaryType) NomsKind() types.NomsKind {
@@ -68,9 +57,6 @@ func (ti *varBinaryType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *varBinaryType) Promote() TypeInfo {
-	return &varBinaryType{ti.sqlBinaryType.Promote().(sql.StringType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *varBinaryType) String() string {

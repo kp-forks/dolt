@@ -53,21 +53,6 @@ func (ti *uintType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *uintType) IsValid(v types.Value) bool {
-	// TODO: Add context parameter to IsValid, or delete the typeinfo package
-	ctx := context.Background()
-	if val, ok := v.(types.Uint); ok {
-		_, _, err := ti.sqlUintType.Convert(ctx, uint64(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *uintType) NomsKind() types.NomsKind {
@@ -75,9 +60,6 @@ func (ti *uintType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *uintType) Promote() TypeInfo {
-	return &uintType{ti.sqlUintType.Promote().(sql.NumberType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *uintType) String() string {

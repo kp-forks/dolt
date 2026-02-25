@@ -62,19 +62,6 @@ func (ti *datetimeType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *datetimeType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Timestamp); ok {
-		_, _, err := ti.sqlDatetimeType.Convert(context.Background(), time.Time(val))
-		if err != nil {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *datetimeType) NomsKind() types.NomsKind {
@@ -82,9 +69,6 @@ func (ti *datetimeType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *datetimeType) Promote() TypeInfo {
-	return &datetimeType{ti.sqlDatetimeType.Promote().(sql.DatetimeType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *datetimeType) String() string {

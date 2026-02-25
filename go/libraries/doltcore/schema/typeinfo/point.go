@@ -48,15 +48,6 @@ func (ti *pointType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *pointType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.Point); ok {
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *pointType) NomsKind() types.NomsKind {
@@ -64,9 +55,6 @@ func (ti *pointType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *pointType) Promote() TypeInfo {
-	return &pointType{ti.sqlPointType.Promote().(gmstypes.PointType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *pointType) String() string {

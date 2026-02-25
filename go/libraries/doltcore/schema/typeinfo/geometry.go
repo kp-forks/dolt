@@ -48,24 +48,6 @@ func (ti *geometryType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *geometryType) IsValid(v types.Value) bool {
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-
-	switch v.(type) {
-	case types.Geometry,
-		types.Point,
-		types.LineString,
-		types.Polygon,
-		types.MultiPoint,
-		types.MultiLineString,
-		types.MultiPolygon:
-		return true
-	default:
-		return false
-	}
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *geometryType) NomsKind() types.NomsKind {
@@ -73,9 +55,6 @@ func (ti *geometryType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *geometryType) Promote() TypeInfo {
-	return ti
-}
 
 // String implements TypeInfo interface.
 func (ti *geometryType) String() string {

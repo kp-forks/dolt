@@ -49,9 +49,6 @@ func (ti *extendedType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements the TypeInfo interface.
-func (ti *extendedType) IsValid(v types.Value) bool {
-	return true
-}
 
 // NomsKind implements the TypeInfo interface.
 func (ti *extendedType) NomsKind() types.NomsKind {
@@ -59,9 +56,6 @@ func (ti *extendedType) NomsKind() types.NomsKind {
 }
 
 // Promote implements the TypeInfo interface.
-func (ti *extendedType) Promote() TypeInfo {
-	return &extendedType{ti.sqlExtendedType.Promote().(sql.ExtendedType)}
-}
 
 // String implements the TypeInfo interface.
 func (ti *extendedType) String() string {

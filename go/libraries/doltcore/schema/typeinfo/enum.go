@@ -61,19 +61,6 @@ func (ti *enumType) Equals(other TypeInfo) bool {
 }
 
 // IsValid implements TypeInfo interface.
-func (ti *enumType) IsValid(v types.Value) bool {
-	if val, ok := v.(types.Uint); ok {
-		_, ok := ti.sqlEnumType.At(int(val))
-		if !ok {
-			return false
-		}
-		return true
-	}
-	if _, ok := v.(types.Null); ok || v == nil {
-		return true
-	}
-	return false
-}
 
 // NomsKind implements TypeInfo interface.
 func (ti *enumType) NomsKind() types.NomsKind {
@@ -81,9 +68,6 @@ func (ti *enumType) NomsKind() types.NomsKind {
 }
 
 // Promote implements TypeInfo interface.
-func (ti *enumType) Promote() TypeInfo {
-	return &enumType{ti.sqlEnumType.Promote().(sql.EnumType)}
-}
 
 // String implements TypeInfo interface.
 func (ti *enumType) String() string {
