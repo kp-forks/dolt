@@ -192,7 +192,7 @@ func resolveJSONSchema(dEnv *env.DoltEnv, root doltdb.RootValue, opts interface{
 	if err != nil {
 		return nil, fmt.Errorf("An error occurred attempting to read the table:\n%v", err.Error())
 	}
-	sch, err := tbl.GetSchema(context.TODO())
+	sch, err := tbl.GetSchema(jsonOpts.SqlCtx)
 	if err != nil {
 		return nil, fmt.Errorf("An error occurred attempting to read the table schema:\n%v", err.Error())
 	}
