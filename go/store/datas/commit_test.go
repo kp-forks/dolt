@@ -98,7 +98,7 @@ func mustValue(val types.Value, err error) types.Value {
 	return val
 }
 
-func TestCommitWithoutMetaField(t *testing.T) {
+func TestIsCommit(t *testing.T) {
 	assert := assert.New(t)
 
 	commitMsg, _ := commit_flatbuffer(hash.Hash{}, CommitOptions{
