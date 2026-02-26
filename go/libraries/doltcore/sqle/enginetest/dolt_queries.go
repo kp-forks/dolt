@@ -527,6 +527,30 @@ var DoltScripts = []queries.ScriptTest{
 		},
 	},
 	{
+		Name: "dolt_commit with only ignored table changes closes the transaction",
+		SetUpScript: []string{
+			"INSERT INTO dolt_ignore VALUES ('ignored_*', true)",
+			"CALL dolt_add('dolt_ignore')",
+			"CALL dolt_commit('-m', 'set up ignore rules')",
+			"START TRANSACTION",
+			"CREATE TABLE ignored_t1 (pk int primary key)",
+			"INSERT INTO ignored_t1 VALUES (42)",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query:          "CALL dolt_commit('-Am', 'commit ignored changes')",
+				ExpectedErrStr: "nothing to commit",
+			},
+			{
+				// Even though there was nothing to commit, the SQL transaction should be committed and
+				// a new session should be able to see the new data in the table.
+				NewSession: true,
+				Query:      "SELECT * FROM ignored_t1 ORDER BY pk",
+				Expected:   []sql.Row{{42}},
+			},
+		},
+	},
+	{
 		Name: "dolt_hashof_table tests",
 		SetUpScript: []string{
 			"CREATE TABLE t1 (pk int primary key);",
