@@ -28,9 +28,11 @@ import (
 	"sort"
 	"testing"
 
+	flatbuffers "github.com/dolthub/flatbuffers/v23/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/dolthub/dolt/go/gen/fb/serial"
 	"github.com/dolthub/dolt/go/store/chunks"
 	"github.com/dolthub/dolt/go/store/d"
 	"github.com/dolthub/dolt/go/store/hash"
@@ -99,25 +101,24 @@ func mustValue(val types.Value, err error) types.Value {
 func TestCommitWithoutMetaField(t *testing.T) {
 	assert := assert.New(t)
 
-	ctx := context.Background()
-	storage := &chunks.TestStorage{}
-	db := NewDatabase(storage.NewViewWithDefaultFormat()).(*database)
-	defer db.Close()
-
-	metaCommit, err := types.NewStruct(db.Format(), "Commit", types.StructData{
-		"value":   types.Float(9),
-		"parents": mustSet(types.NewSet(ctx, db)),
-		"meta":    types.EmptyStruct(db.Format()),
-	})
+	commitMsg, _ := commit_flatbuffer(hash.Hash{}, CommitOptions{
+		Meta: &CommitMeta{Name: "test", Email: "test@test.com", Description: "test commit"},
+	}, nil, hash.Hash{})
+	metaCommit := types.SerialMessage(commitMsg)
+	ok, err := IsCommit(metaCommit)
 	assert.NoError(err)
-	assert.True(IsCommit(metaCommit))
+	assert.True(ok)
 
-	noMetaCommit, err := types.NewStruct(db.Format(), "Commit", types.StructData{
-		"value":   types.Float(9),
-		"parents": mustSet(types.NewSet(ctx, db)),
-	})
+	rvBuilder := flatbuffers.NewBuilder(64)
+	serial.RootValueStart(rvBuilder)
+	notACommit := types.SerialMessage(serial.FinishMessage(
+		rvBuilder,
+		serial.RootValueEnd(rvBuilder),
+		[]byte(serial.RootValueFileID),
+	))
+	ok, err = IsCommit(notACommit)
 	assert.NoError(err)
-	assert.False(IsCommit(noMetaCommit))
+	assert.False(ok)
 }
 
 func mustCommitToTargetHashes(vrw types.ValueReadWriter, commits ...types.Value) []hash.Hash {
