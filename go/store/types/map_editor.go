@@ -65,10 +65,6 @@ type MapEditor struct {
 	numEdits int64
 }
 
-func NewMapEditor(m Map) *MapEditor {
-	return &MapEditor{m, CreateEditAccForMapEdits(m.valueReadWriter()), 0}
-}
-
 // Map applies all edits and returns a newly updated Map
 func (med *MapEditor) Map(ctx context.Context) (Map, error) {
 	edits, err := med.acc.FinishedEditing(ctx)

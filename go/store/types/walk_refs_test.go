@@ -148,21 +148,6 @@ func TestWalkRefs(t *testing.T) {
 			require.NoError(t, err)
 			runTest(vrw.Format(), m, t)
 		})
-
-		t.Run("Chunked", func(t *testing.T) {
-			m, err := NewMap(context.Background(), vrw, newValueSlice(vrw.Format(), r)...)
-			require.NoError(t, err)
-			for m.isLeaf() {
-				e := m.Edit()
-				vs := newValueSlice(vrw.Format(), r)
-				for i := 0; i < len(vs); i += 2 {
-					e = e.Set(vs[i], vs[i+1])
-				}
-				m, err = e.Map(context.Background())
-				require.NoError(t, err)
-			}
-			runTest(vrw.Format(), m, t)
-		})
 	})
 
 	t.Run("Blob", func(t *testing.T) {

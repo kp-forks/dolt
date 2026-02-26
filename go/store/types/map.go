@@ -297,10 +297,6 @@ func (m Map) isPrimitive() bool {
 	return false
 }
 
-func (m Map) Edit() *MapEditor {
-	return NewMapEditor(m)
-}
-
 func buildMapData(ctx context.Context, vr ValueReader, values []Value) (mapEntrySlice, error) {
 	if len(values) == 0 {
 		return mapEntrySlice{}, nil
