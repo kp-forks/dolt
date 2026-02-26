@@ -524,6 +524,34 @@ func (gbs *GitBlobstore) CleanupOwnedLocalRef(ctx context.Context) error {
 	return err
 }
 
+// Close best-effort deletes this instance's UUID-owned refs.
+func (gbs *GitBlobstore) Close() error {
+	ctx := context.Background()
+
+	gbs.mu.Lock()
+	defer gbs.mu.Unlock()
+
+	deleteIfExists := func(ref string) error {
+		if ref == "" {
+			return nil
+		}
+		_, ok, err := gbs.api.TryResolveRefCommit(ctx, ref)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		_, err = gbs.runner.Run(ctx, git.RunOptions{}, "update-ref", "-d", ref)
+		return err
+	}
+
+	return errors.Join(
+		deleteIfExists(gbs.localRef),
+		deleteIfExists(gbs.remoteTrackingRef),
+	)
+}
+
 func (gbs *GitBlobstore) syncForRead(ctx context.Context) error {
 	if err := gbs.validateRemoteManaged(); err != nil {
 		return err

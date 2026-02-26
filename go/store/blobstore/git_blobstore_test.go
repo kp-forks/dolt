@@ -282,6 +282,43 @@ func TestGitBlobstore_CleanupOwnedLocalRef_DeletesRef(t *testing.T) {
 	require.Equal(t, bs.localRef, rnf.Ref)
 }
 
+func TestGitBlobstore_Close_DeletesOwnedLocalAndTrackingRefs(t *testing.T) {
+	requireGitOnPath(t)
+
+	ctx := context.Background()
+	remoteRepo, localRepo, localRunner := newRemoteAndLocalRepos(t, ctx)
+	_, err := remoteRepo.SetRefToTree(ctx, DoltDataRef, map[string][]byte{
+		"manifest": []byte("seed\n"),
+	}, "seed")
+	require.NoError(t, err)
+
+	bs, err := NewGitBlobstoreWithOptions(localRepo.GitDir, DoltDataRef, GitBlobstoreOptions{RemoteName: "origin"})
+	require.NoError(t, err)
+
+	// Force refs to be created via a remote-managed read.
+	ok, err := bs.Exists(ctx, "manifest")
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	localAPI := git.NewGitAPIImpl(localRunner)
+	_, err = localAPI.ResolveRefCommit(ctx, bs.localRef)
+	require.NoError(t, err)
+	_, err = localAPI.ResolveRefCommit(ctx, bs.remoteTrackingRef)
+	require.NoError(t, err)
+
+	require.NoError(t, bs.Close())
+
+	_, err = localAPI.ResolveRefCommit(ctx, bs.localRef)
+	var rnf *git.RefNotFoundError
+	require.ErrorAs(t, err, &rnf)
+	require.Equal(t, bs.localRef, rnf.Ref)
+
+	_, err = localAPI.ResolveRefCommit(ctx, bs.remoteTrackingRef)
+	rnf = nil
+	require.ErrorAs(t, err, &rnf)
+	require.Equal(t, bs.remoteTrackingRef, rnf.Ref)
+}
+
 func TestGitBlobstore_RemoteManaged_PutPushesToRemote(t *testing.T) {
 	requireGitOnPath(t)
 
