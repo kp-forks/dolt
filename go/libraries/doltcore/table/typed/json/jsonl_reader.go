@@ -81,7 +81,7 @@ func (r *JSONLReader) Close(ctx context.Context) error {
 		r.closer = nil
 		return err
 	}
-	return errors.New("already closed")
+	return nil
 }
 
 func (r *JSONLReader) GetSchema() schema.Schema {
@@ -90,9 +90,15 @@ func (r *JSONLReader) GetSchema() schema.Schema {
 
 func (r *JSONLReader) VerifySchema(sch schema.Schema) (bool, error) {
 	if r.sampleRow == nil {
-		var err error
-		r.sampleRow, err = r.ReadSqlRow(context.Background())
-		return err == nil, nil
+		row, err := r.ReadSqlRow(context.Background())
+		if err == nil {
+			r.sampleRow = row
+			return true, nil
+		}
+		if err == io.EOF {
+			return false, nil
+		}
+		return false, err
 	}
 	return true, nil
 }

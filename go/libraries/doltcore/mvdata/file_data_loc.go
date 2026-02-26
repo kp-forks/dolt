@@ -165,8 +165,14 @@ func (dl FileDataLocation) NewReader(ctx context.Context, dEnv *env.DoltEnv, opt
 }
 
 func resolveJSONSchema(dEnv *env.DoltEnv, root doltdb.RootValue, opts interface{}) (schema.Schema, error) {
-	var sch schema.Schema
-	jsonOpts, _ := opts.(JSONOptions)
+	if opts == nil {
+		return nil, errors.New("Unable to determine table name on JSON import")
+	}
+
+	jsonOpts, ok := opts.(JSONOptions)
+	if !ok {
+		return nil, fmt.Errorf("invalid JSON import options: expected mvdata.JSONOptions, got %T", opts)
+	}
 
 	if jsonOpts.SchFile != "" {
 		tn, s, err := SchAndTableNameFromFile(jsonOpts.SqlCtx, jsonOpts.SchFile, dEnv.FS, root, jsonOpts.Engine)
@@ -179,10 +185,6 @@ func resolveJSONSchema(dEnv *env.DoltEnv, root doltdb.RootValue, opts interface{
 		return s, nil
 	}
 
-	if opts == nil {
-		return nil, errors.New("Unable to determine table name on JSON import")
-	}
-
 	tbl, exists, err := root.GetTable(context.TODO(), doltdb.TableName{Name: jsonOpts.TableName})
 	if !exists {
 		return nil, fmt.Errorf("The following table could not be found:\n%v", jsonOpts.TableName)
@@ -190,7 +192,7 @@ func resolveJSONSchema(dEnv *env.DoltEnv, root doltdb.RootValue, opts interface{
 	if err != nil {
 		return nil, fmt.Errorf("An error occurred attempting to read the table:\n%v", err.Error())
 	}
-	sch, err = tbl.GetSchema(context.TODO())
+	sch, err := tbl.GetSchema(context.TODO())
 	if err != nil {
 		return nil, fmt.Errorf("An error occurred attempting to read the table schema:\n%v", err.Error())
 	}
