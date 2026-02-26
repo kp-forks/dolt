@@ -23,17 +23,13 @@ package types
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/dolthub/dolt/go/store/d"
-	"github.com/dolthub/dolt/go/store/hash"
 )
 
 // type ValueInRange func(Value) (bool, error)
 type ValueInRange func(context.Context, Value) (bool, bool, error)
-
-var ErrKeysNotOrdered = errors.New("streaming map keys not ordered")
 
 var EmptyMap Map
 
@@ -94,44 +90,6 @@ func NewMap(ctx context.Context, vrw ValueReadWriter, kv ...Value) (Map, error) 
 	}
 
 	return newMap(seq.(orderedSequence)), nil
-}
-
-// Diff computes the diff from |last| to |m| using the top-down algorithm,
-// which completes as fast as possible while taking longer to return early
-// results than left-to-right.
-func (m Map) Diff(ctx context.Context, last Map, changes chan<- ValueChanged) error {
-	if m.Equals(last) {
-		return nil
-	}
-	return orderedSequenceDiffLeftRight(ctx, last.orderedSequence, m.orderedSequence, changes)
-}
-
-// DiffLeftRight computes the diff from |last| to |m| using a left-to-right
-// streaming approach, optimised for returning results early, but not
-// completing quickly.
-func (m Map) DiffLeftRight(ctx context.Context, last Map, changes chan<- ValueChanged) error {
-	trueFunc := func(context.Context, Value) (bool, bool, error) {
-		return true, false, nil
-	}
-	return m.DiffLeftRightInRange(ctx, last, nil, trueFunc, changes)
-}
-
-func (m Map) DiffLeftRightInRange(ctx context.Context, last Map, start Value, inRange ValueInRange, changes chan<- ValueChanged) error {
-	if m.Equals(last) {
-		return nil
-	}
-
-	startKey := emptyKey
-	if !IsNull(start) {
-		var err error
-		startKey, err = newOrderedKey(start, m.Format())
-
-		if err != nil {
-			return err
-		}
-	}
-
-	return orderedSequenceDiffLeftRightInRange(ctx, last.orderedSequence, m.orderedSequence, startKey, inRange, changes)
 }
 
 // Collection interface
@@ -404,203 +362,6 @@ func (m Map) String() string {
 
 func (m Map) HumanReadableString() string {
 	panic("unreachable")
-}
-
-// VisitMapLevelOrder writes hashes of internal node chunks to a writer
-// delimited with a newline character and returns the number of chunks written and the total number of
-// bytes written or an error if encountered
-func VisitMapLevelOrder(m Map, cb func(h hash.Hash) (int64, error)) (int64, int64, error) {
-	chunkCount := int64(0)
-	byteCount := int64(0)
-
-	curLevel := []Map{m}
-	for len(curLevel) > 0 {
-		nextLevel := []Map{}
-		for _, m := range curLevel {
-			if metaSeq, ok := m.orderedSequence.(metaSequence); ok {
-				ts, err := metaSeq.tuples()
-				if err != nil {
-					return 0, 0, err
-				}
-				for _, t := range ts {
-					r, err := t.ref()
-					if err != nil {
-						return 0, 0, err
-					}
-
-					n, err := cb(r.TargetHash())
-					if err != nil {
-						return 0, 0, err
-					}
-
-					chunkCount++
-					byteCount += n
-
-					v, err := r.TargetValue(context.Background(), m.valueReadWriter())
-					if err != nil {
-						return 0, 0, err
-					}
-
-					nextLevel = append(nextLevel, v.(Map))
-				}
-			} else if _, ok := m.orderedSequence.(mapLeafSequence); ok {
-
-			}
-		}
-		curLevel = nextLevel
-	}
-
-	return chunkCount, byteCount, nil
-}
-
-// VisitMapLevelOrderSized passes hashes of internal node chunks to a callback in level order,
-// batching and flushing chunks to prevent large levels from consuming excessive memory. It returns
-// the total number of chunks and bytes read, or an error.
-func VisitMapLevelOrderSized(ms []Map, batchSize int, cb func(h hash.Hash) (int64, error)) (int64, int64, error) {
-	if len(ms) == 0 {
-		return 0, 0, nil
-	}
-	if batchSize < 0 {
-		return 0, 0, errors.New("invalid batch size")
-	}
-
-	chunkCount := int64(0)
-	byteCount := int64(0)
-
-	chunkHashes := []hash.Hash{}
-	chunkMaps := []Map{}
-
-	flush := func() error {
-		for _, h := range chunkHashes {
-			n, err := cb(h)
-			if err != nil {
-				return err
-			}
-			byteCount += n
-		}
-		chunkCount += int64(len(chunkHashes))
-		cc, bc, err := VisitMapLevelOrderSized(chunkMaps, batchSize, cb)
-		if err != nil {
-			return err
-		}
-		chunkCount += cc
-		byteCount += bc
-		chunkHashes = []hash.Hash{}
-		chunkMaps = []Map{}
-		return nil
-	}
-
-	for _, m := range ms {
-		if metaSeq, ok := m.orderedSequence.(metaSequence); ok {
-			ts, err := metaSeq.tuples()
-			if err != nil {
-				return 0, 0, err
-			}
-			for _, t := range ts {
-				r, err := t.ref()
-				if err != nil {
-					return 0, 0, err
-				}
-
-				chunkHashes = append(chunkHashes, r.TargetHash())
-				v, err := r.TargetValue(context.Background(), m.valueReadWriter())
-				if err != nil {
-					return 0, 0, err
-				}
-				if cm, ok := v.(Map); ok {
-					chunkMaps = append(chunkMaps, cm)
-				}
-			}
-		} else if _, ok := m.orderedSequence.(mapLeafSequence); ok {
-		}
-		if len(chunkHashes) >= batchSize {
-			if err := flush(); err != nil {
-				return 0, 0, err
-			}
-		}
-	}
-
-	if err := flush(); err != nil {
-		return 0, 0, err
-	}
-
-	return chunkCount, byteCount, nil
-}
-
-func IsMapLeaf(m Map) bool {
-	return m.isLeaf()
-}
-
-func (m Map) IndexForKey(ctx context.Context, key Value) (int64, error) {
-	orderedKey, err := newOrderedKey(key, m.Format())
-	if err != nil {
-		return 0, err
-	}
-
-	if metaSeq, ok := m.orderedSequence.(metaSequence); ok {
-		return indexForKeyWithinSubtree(ctx, orderedKey, metaSeq, m.valueReadWriter())
-	} else if leaf, ok := m.orderedSequence.(mapLeafSequence); ok {
-		leafIdx, err := leaf.search(ctx, orderedKey)
-		if err != nil {
-			return 0, err
-		}
-
-		return int64(leafIdx), nil
-	} else {
-		return 0, errors.New("unknown sequence type")
-	}
-}
-
-func indexForKeyWithinSubtree(ctx context.Context, key orderedKey, metaSeq metaSequence, vrw ValueReadWriter) (int64, error) {
-	ts, err := metaSeq.tuples()
-	if err != nil {
-		return 0, err
-	}
-
-	var idx int64
-	for _, t := range ts {
-		tupleKey, err := t.key(vrw)
-		if err != nil {
-			return 0, err
-		}
-
-		isLess, err := key.Less(ctx, vrw.Format(), tupleKey)
-		if err != nil {
-			return 0, err
-		}
-		if !isLess {
-			eq := tupleKey.v.Equals(key.v)
-			if eq {
-				return idx + int64(t.numLeaves()-1), nil
-			} else {
-				idx += int64(t.numLeaves())
-			}
-		} else {
-			child, err := t.getChildSequence(ctx, vrw)
-			if err != nil {
-				return 0, err
-			}
-
-			if childMetaSeq, ok := child.(metaSequence); ok {
-				subtreeIdx, err := indexForKeyWithinSubtree(ctx, key, childMetaSeq, vrw)
-				if err != nil {
-					return 0, err
-				}
-				return idx + subtreeIdx, nil
-			} else if leaf, ok := child.(mapLeafSequence); ok {
-				leafIdx, err := leaf.search(ctx, key)
-				if err != nil {
-					return 0, err
-				}
-
-				return idx + int64(leafIdx), nil
-			} else {
-				return 0, errors.New("unknown sequence type")
-			}
-		}
-	}
-
-	return idx, nil
 }
 
 // MapUnionConflictCB is a callback that is used to resolve a key collision.

@@ -54,18 +54,17 @@ const (
 type FKViolationReceiver interface {
 	StartFK(ctx *sql.Context, fk doltdb.ForeignKey) error
 	EndCurrFK(ctx context.Context) error
-	NomsFKViolationFound(ctx context.Context, rowKey, rowValue types.Tuple) error
 	ProllyFKViolationFound(ctx context.Context, rowKey, rowValue val.Tuple) error
 }
 
 // RegisterForeignKeyViolations emits constraint violations that have been created as a
 // result of the diff between |baseRoot| and |newRoot|. It sends violations to |receiver|.
 func RegisterForeignKeyViolations(
-	ctx *sql.Context,
-	tableResolver doltdb.TableResolver,
-	newRoot, baseRoot doltdb.RootValue,
-	tables *doltdb.TableNameSet,
-	receiver FKViolationReceiver,
+		ctx *sql.Context,
+		tableResolver doltdb.TableResolver,
+		newRoot, baseRoot doltdb.RootValue,
+		tables *doltdb.TableNameSet,
+		receiver FKViolationReceiver,
 ) error {
 	fkColl, err := newRoot.GetForeignKeyCollection(ctx)
 	if err != nil {
@@ -214,10 +213,6 @@ type foreignKeyViolationWriter struct {
 	artEditor     *prolly.ArtifactsEditor
 	kd            *val.TupleDesc
 	cInfoJsonData []byte
-
-	// noms
-	violMapEditor *types.MapEditor
-	nomsVInfo     types.JSON
 }
 
 var _ FKViolationReceiver = (*foreignKeyViolationWriter)(nil)
@@ -289,18 +284,6 @@ func (f *foreignKeyViolationWriter) EndCurrFK(ctx context.Context) error {
 	return nil
 }
 
-func (f *foreignKeyViolationWriter) NomsFKViolationFound(ctx context.Context, rowKey, rowValue types.Tuple) error {
-	cvKey, cvVal, err := toConstraintViolationRow(ctx, CvType_ForeignKey, f.nomsVInfo, rowKey, rowValue)
-	if err != nil {
-		return err
-	}
-
-	f.violMapEditor.Set(cvKey, cvVal)
-	f.violatedTables.Add(f.currFk.TableName)
-
-	return nil
-}
-
 func (f *foreignKeyViolationWriter) ProllyFKViolationFound(ctx context.Context, rowKey, rowValue val.Tuple) error {
 	meta := prolly.ConstraintViolationMeta{VInfo: f.cInfoJsonData, Value: rowValue}
 
@@ -318,11 +301,11 @@ var _ FKViolationReceiver = (*foreignKeyViolationWriter)(nil)
 
 // parentFkConstraintViolations processes foreign key constraint violations for the parent in a foreign key.
 func parentFkConstraintViolations(
-	ctx context.Context,
-	foreignKey doltdb.ForeignKey,
-	preParent, postParent, postChild *constraintViolationsLoadedTable,
-	preParentRowData durable.Index,
-	receiver FKViolationReceiver,
+		ctx context.Context,
+		foreignKey doltdb.ForeignKey,
+		preParent, postParent, postChild *constraintViolationsLoadedTable,
+		preParentRowData durable.Index,
+		receiver FKViolationReceiver,
 ) error {
 	if preParentRowData.Format() != types.Format_DOLT {
 		panic("unsupported format: " + preParentRowData.Format().VersionString())
@@ -358,12 +341,12 @@ func parentFkConstraintViolations(
 // childFkConstraintViolations handles processing the reference options on a child, or creating a violation if
 // necessary.
 func childFkConstraintViolations(
-	ctx context.Context,
-	vr types.ValueReader,
-	foreignKey doltdb.ForeignKey,
-	postParent, postChild, preChild *constraintViolationsLoadedTable,
-	preChildRowData durable.Index,
-	receiver FKViolationReceiver,
+		ctx context.Context,
+		vr types.ValueReader,
+		foreignKey doltdb.ForeignKey,
+		postParent, postChild, preChild *constraintViolationsLoadedTable,
+		preChildRowData durable.Index,
+		receiver FKViolationReceiver,
 ) error {
 	if preChildRowData.Format() != types.Format_DOLT {
 		panic("unsupported format: " + preChildRowData.Format().VersionString())
@@ -400,11 +383,11 @@ func childFkConstraintViolations(
 // newConstraintViolationsLoadedTable returns a *constraintViolationsLoadedTable. Returns false if the table was loaded
 // but the index could not be found. If the table could not be found, then an error is returned.
 func newConstraintViolationsLoadedTable(
-	ctx *sql.Context,
-	tableResolver doltdb.TableResolver,
-	tblName doltdb.TableName,
-	idxName string,
-	root doltdb.RootValue,
+		ctx *sql.Context,
+		tableResolver doltdb.TableResolver,
+		tblName doltdb.TableName,
+		idxName string,
+		root doltdb.RootValue,
 ) (*constraintViolationsLoadedTable, bool, error) {
 	trueTblName, tbl, ok, err := tableResolver.ResolveTableInsensitive(ctx, root, tblName)
 	if err != nil {
