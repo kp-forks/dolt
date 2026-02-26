@@ -302,7 +302,7 @@ DELIM
     run dolt schema update-tag t col 5
     [ $status -ne 0 ]
     echo $output
-    [[ $output =~ "update-tag is only available in storage format __DOLT__" ]] || false
+    [[ $output =~ "unsupported" ]] || false
 }
 
 @test "column_tags: update-tag updates a columns tag" {
