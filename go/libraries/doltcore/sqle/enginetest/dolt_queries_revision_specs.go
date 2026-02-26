@@ -654,7 +654,7 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 			},
 			{
 				Query:    "select database();",
-				Expected: []sql.Row{{"mydb@branch@"}},
+				Expected: []sql.Row{{"Mydb@Branch@"}},
 			},
 			{
 				Query:    "select * from t01;",

@@ -750,7 +750,7 @@ func (p *DoltDatabaseProvider) CreateCollatedDatabase(ctx *sql.Context, name str
 func validateDBName(dbName string) error {
 	for _, delimiter := range doltdb.DBRevisionDelimiters {
 		if strings.Contains(dbName, delimiter) {
-			return sql.ErrWrongDBName.New(delimiter)
+			return sql.ErrWrongDBName.New(dbName)
 		}
 	}
 	return nil
@@ -1469,8 +1469,7 @@ func (p *DoltDatabaseProvider) BaseDatabase(ctx *sql.Context, name string) (dses
 
 // SessionDatabase implements dsess.SessionDatabaseProvider
 func (p *DoltDatabaseProvider) SessionDatabase(ctx *sql.Context, name string) (dsess.SqlDatabase, bool, error) {
-	name = strings.ToLower(name)
-	baseName, revision := doltdb.SplitRevisionDbName(name)
+	baseName, revision := doltdb.SplitRevisionDbName(strings.ToLower(name))
 
 	p.mu.RLock()
 	db, ok := p.databases[baseName]
