@@ -185,7 +185,7 @@ func resolveJSONSchema(dEnv *env.DoltEnv, root doltdb.RootValue, opts interface{
 		return s, nil
 	}
 
-	tbl, exists, err := root.GetTable(context.TODO(), doltdb.TableName{Name: jsonOpts.TableName})
+	tbl, exists, err := root.GetTable(jsonOpts.SqlCtx, doltdb.TableName{Name: jsonOpts.TableName})
 	if !exists {
 		return nil, fmt.Errorf("The following table could not be found:\n%v", jsonOpts.TableName)
 	}
