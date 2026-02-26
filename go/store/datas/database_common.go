@@ -728,10 +728,10 @@ func (db *database) PersistGhostCommitIDs(ctx context.Context, ghosts hash.HashS
 // global locking mechanism as UpdateWorkingSet.
 // The current dataset head will be filled in as the first parent of the new commit if not already present.
 func (db *database) CommitWithWorkingSet(
-	ctx context.Context,
-	commitDS, workingSetDS Dataset,
-	val types.Value, workingSetSpec WorkingSetSpec,
-	prevWsHash hash.Hash, opts CommitOptions,
+		ctx context.Context,
+		commitDS, workingSetDS Dataset,
+		val types.Value, workingSetSpec WorkingSetSpec,
+		prevWsHash hash.Hash, opts CommitOptions,
 ) (Dataset, Dataset, error) {
 	wsAddr, _, err := newWorkingSet(ctx, db, workingSetSpec)
 	if err != nil {
@@ -820,8 +820,8 @@ func (db *database) Delete(ctx context.Context, ds Dataset, wsIDStr string) (Dat
 }
 
 func (db *database) update(
-	ctx context.Context,
-	editFB func(context.Context, prolly.AddressMap) (prolly.AddressMap, error),
+		ctx context.Context,
+		editFB func(context.Context, prolly.AddressMap) (prolly.AddressMap, error),
 ) error {
 	var (
 		err  error
@@ -857,10 +857,11 @@ func (db *database) update(
 
 		err = db.tryCommitChunks(ctx, newRootHash, root)
 		if err != ErrOptimisticLockFailed {
-			break
+			return err
 		}
 	}
-	return err
+
+	return nil
 }
 
 func (db *database) doDelete(ctx context.Context, datasetIDstr string, workingsetIDstr string) error {
