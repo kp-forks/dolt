@@ -194,7 +194,7 @@ func doDoltCommit(ctx *sql.Context, args []string) (string, bool, error) {
 		}
 
 		if apr.Contains(cli.SkipEmptyFlag) {
-			return "", true, err
+			return "", true, nil
 		}
 		return "", false, errors.New("nothing to commit")
 	}
