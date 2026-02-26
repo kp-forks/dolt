@@ -136,14 +136,6 @@ func (m Map) Format() *NomsBinFormat {
 	return m.format()
 }
 
-func (m Map) First(ctx context.Context) (Value, Value, error) {
-	return m.firstOrLast(ctx, false)
-}
-
-func (m Map) Last(ctx context.Context) (Value, Value, error) {
-	return m.firstOrLast(ctx, true)
-}
-
 func (m Map) At(ctx context.Context, idx uint64) (key, value Value, err error) {
 	if idx >= m.Len() {
 		panic(fmt.Errorf("out of bounds: %d >= %d", idx, m.Len()))
