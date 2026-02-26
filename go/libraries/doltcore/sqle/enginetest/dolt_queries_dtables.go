@@ -44,4 +44,53 @@ var DoltStatusTableScripts = []queries.ScriptTest{
 			},
 		},
 	},
+	{
+		// https://github.com/dolthub/dolt/issues/8283
+		Name: "dolt_status tests",
+		SetUpScript: []string{
+			"CALL DOLT_COMMIT('--allow-empty', '-m', 'empty commit');",
+			"SET @commit1 = HASHOF('HEAD');",
+			"CALL DOLT_TAG('tag1');",
+			"CALL DOLT_CHECKOUT('-b', 'branch1');",
+			"CREATE TABLE abc (pk int);",
+			"CALL DOLT_ADD('abc');",
+			"CALL DOLT_CHECKOUT('main');",
+			"CREATE TABLE t (pk int primary key, v varchar(100));",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query:    "SELECT * FROM dolt_status;",
+				Expected: []sql.Row{{"t", byte(0), "new table"}},
+			},
+			{
+				Query:    "SELECT * FROM `mydb/main`.dolt_status;",
+				Expected: []sql.Row{{"t", byte(0), "new table"}},
+			},
+			{
+				Query:    "SELECT * FROM dolt_status AS OF 'tag1';",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "SELECT * FROM dolt_status AS OF @commit1;",
+				Expected: []sql.Row{},
+			},
+			{
+				// HEAD is a special revision spec
+				Query:    "SELECT * FROM dolt_status AS OF 'head';",
+				Expected: []sql.Row{{"t", byte(0), "new table"}},
+			},
+			{
+				Query:    "SELECT * FROM dolt_status AS OF 'HEAD~1';",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "SELECT * FROM dolt_status AS OF 'branch1';",
+				Expected: []sql.Row{{"abc", byte(1), "new table"}},
+			},
+			{
+				Query:    "SELECT * FROM `mydb/branch1`.dolt_status;",
+				Expected: []sql.Row{{"abc", byte(1), "new table"}},
+			},
+		},
+	},
 }

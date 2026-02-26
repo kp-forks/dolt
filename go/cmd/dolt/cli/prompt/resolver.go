@@ -33,9 +33,6 @@ type Parts struct {
 	Dirty             bool
 }
 
-// revisionDelimiters follows [doltdb]'s definition to separate the base database from the revision.
-var revisionDelimiters = []string{doltdb.DbRevisionDelimiter, doltdb.DbRevisionDelimiterAlias}
-
 // Resolver resolves prompt [prompt.Parts] for the active session.
 type Resolver interface {
 	Resolve(sqlCtx *sql.Context, queryist cli.Queryist) (parts Parts, resolved bool, err error)
@@ -89,7 +86,7 @@ func (sqlDBActiveBranchResolver) Resolve(sqlCtx *sql.Context, queryist cli.Query
 		parts.BaseDatabase, parts.ActiveRevision = doltdb.SplitRevisionDbName(dbName)
 
 		parts.RevisionDelimiter = doltdb.DbRevisionDelimiter
-		for _, delimiter := range revisionDelimiters {
+		for _, delimiter := range doltdb.DBRevisionDelimiters {
 			if strings.Contains(dbName, delimiter) {
 				parts.RevisionDelimiter = delimiter
 				break

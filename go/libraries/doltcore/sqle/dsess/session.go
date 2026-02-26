@@ -194,7 +194,7 @@ func (d *DoltSession) lookupDbState(ctx *sql.Context, dbName string) (*branchSta
 		}
 	}
 
-	database, ok, err := d.provider.SessionDatabase(ctx, dbName)
+	database, ok, err := d.provider.SessionDatabase(ctx, doltdb.RevisionDbName(baseName, rev))
 	if err != nil {
 		return nil, false, err
 	}

@@ -572,9 +572,13 @@ func commitTransaction(ctx *sql.Context, dSess *dsess.DoltSession, rsc *doltdb.R
 }
 
 func (p *DoltDatabaseProvider) CreateCollatedDatabase(ctx *sql.Context, name string, collation sql.CollationID) (err error) {
-	// On Windows we have to check before creating the directory to avoid a process lock.
-	if strings.ContainsAny(name, doltdb.DbRevisionDelimiterAlias+doltdb.DbRevisionDelimiter) {
-		return sql.ErrWrongDBName.New(name)
+	// We have to validate the name before attempting to create a directory. If a directory contains a delimiter, when
+	// registerNewDatabase errors out a directory with the exact name will be leftover due to a process lock. This then
+	// tricks GMS' call to HasDatabase on CREATE to believe a database already exists with |name|. We validate the name
+	// here to return the correct error, and avoid leftovers.
+	err = validateDBName(name)
+	if err != nil {
+		return err
 	}
 
 	exists, isDir := p.fs.Exists(name)
@@ -740,6 +744,15 @@ func (p *DoltDatabaseProvider) CreateCollatedDatabase(ctx *sql.Context, name str
 		}
 	}
 
+	return nil
+}
+
+func validateDBName(dbName string) error {
+	for _, delimiter := range doltdb.DBRevisionDelimiters {
+		if strings.Contains(dbName, delimiter) {
+			return sql.ErrWrongDBName.New(delimiter)
+		}
+	}
 	return nil
 }
 
@@ -997,8 +1010,9 @@ func (p *DoltDatabaseProvider) PurgeDroppedDatabases(ctx *sql.Context) error {
 func (p *DoltDatabaseProvider) registerNewDatabase(ctx *sql.Context, name string, newEnv *env.DoltEnv) (err error) {
 	// Creating normal database names with revision delimiters can create ambiguity in methods that do not have access
 	// to some sort database table (e.g., client-side evaluations through server queries).
-	if strings.ContainsAny(name, doltdb.DbRevisionDelimiter+doltdb.DbRevisionDelimiterAlias) {
-		return sql.ErrWrongDBName.New(name)
+	err = validateDBName(name)
+	if err != nil {
+		return err
 	}
 
 	// This method MUST be called with the provider's mutex locked
@@ -1074,10 +1088,16 @@ func (p *DoltDatabaseProvider) invalidateDbStateInAllSessions(ctx *sql.Context, 
 }
 
 func (p *DoltDatabaseProvider) databaseForRevision(ctx *sql.Context, revisionQualifiedName string, requestedName string) (dsess.SqlDatabase, bool, error) {
-	if !strings.ContainsAny(revisionQualifiedName, doltdb.DbRevisionDelimiter+doltdb.DbRevisionDelimiterAlias) {
+	baseName, rev := doltdb.SplitRevisionDbName(revisionQualifiedName)
+	if rev == "" {
 		return nil, false, nil
 	}
-	baseName, rev := doltdb.SplitRevisionDbName(revisionQualifiedName)
+
+	dbCache := dsess.DSessFromSess(ctx.Session).DatabaseCache(ctx)
+	db, ok := dbCache.GetCachedRevisionDb(revisionQualifiedName, requestedName)
+	if ok {
+		return db, true, nil
+	}
 
 	p.mu.RLock()
 	srcDb, ok := p.databases[formatDbMapKeyName(baseName)]
@@ -1089,14 +1109,6 @@ func (p *DoltDatabaseProvider) databaseForRevision(ctx *sql.Context, revisionQua
 	dbType, resolvedRevSpec, err := revisionDbType(ctx, srcDb, rev)
 	if err != nil {
 		return nil, false, err
-	}
-
-	// Use cached revision db only when the rev resolved in current refs. Branch and tag changes can stale session cache
-	// entries, so validate the revision type before returning a cached db.
-	dbCache := dsess.DSessFromSess(ctx.Session).DatabaseCache(ctx)
-	db, ok := dbCache.GetCachedRevisionDb(revisionQualifiedName, requestedName)
-	if ok && dbType != dsess.RevisionTypeNone {
-		return db, true, nil
 	}
 
 	switch dbType {
@@ -1457,8 +1469,8 @@ func (p *DoltDatabaseProvider) BaseDatabase(ctx *sql.Context, name string) (dses
 
 // SessionDatabase implements dsess.SessionDatabaseProvider
 func (p *DoltDatabaseProvider) SessionDatabase(ctx *sql.Context, name string) (dsess.SqlDatabase, bool, error) {
-	baseName, revision := doltdb.SplitRevisionDbName(strings.ToLower(name))
-	revisionQualifiedName := formatDbMapKeyName(name)
+	name = strings.ToLower(name)
+	baseName, revision := doltdb.SplitRevisionDbName(name)
 
 	p.mu.RLock()
 	db, ok := p.databases[baseName]
@@ -1481,6 +1493,7 @@ func (p *DoltDatabaseProvider) SessionDatabase(ctx *sql.Context, name string) (d
 
 	// Convert to a revision database before returning. If we got a non-qualified name, convert it to a qualified name
 	// using the session's current head
+	revisionQualifiedName := formatDbMapKeyName(name)
 	usingDefaultBranch := false
 	head := ""
 	if revision == "" {

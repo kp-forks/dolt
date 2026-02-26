@@ -15,8 +15,6 @@
 package enginetest
 
 import (
-	"fmt"
-
 	"github.com/dolthub/go-mysql-server/enginetest/queries"
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/plan"
@@ -430,35 +428,9 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 				Expected: []sql.Row{{"information_schema"}, {"mydb"}, {"mydb@main"}, {"mysql"}},
 			},
 			{
-				Query:    "call dolt_checkout('-b', 'branch@');",
-				Expected: []sql.Row{{0, "Switched to branch 'branch@'"}},
-			},
-			{
-				Query: "use `mydb/branch@`",
-				// The `/` delimiter takes precedence over the alias.
-				Expected: []sql.Row{},
-			},
-			{
-				Query:    "select database()",
-				Expected: []sql.Row{{"mydb/branch@"}},
-			},
-			{
-				Query: "drop database `mydb@branch@`",
-				// The first index is processed first, allowing branch names with the @ character.
-				ExpectedErrStr: fmt.Sprintf("unable to drop revision database: %s", "mydb@branch@"),
-			},
-			{
-				Query:    "use `mydb@branch@`;",
-				Expected: []sql.Row{},
-			},
-			{
 				Query: "call dolt_checkout('-b', 'branch1');",
 				// dolt_checkout works from a revision database using the alias delimiter.
 				Expected: []sql.Row{{0, "Switched to branch 'branch1'"}},
-			},
-			{
-				Query:    "call dolt_branch('-D', 'branch@');",
-				Expected: []sql.Row{{0}},
 			},
 			{
 				Query:    "create table t01(pk int primary key, c1 int);",
@@ -611,11 +583,6 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 				Query:    "select * from t01;",
 				Expected: []sql.Row{{2, 30}},
 			},
-			{
-				Query: "create database `mydb@branch1`;",
-				// This is a result of GMS' internal call to the providers' HasDatabase
-				ExpectedErrStr: "can't create database mydb@branch1; database exists",
-			},
 		},
 	},
 	{
@@ -653,6 +620,141 @@ var DoltRevisionDbScripts = []queries.ScriptTest{
 			{
 				Query:    "execute select_stmt;",
 				Expected: []sql.Row{{1, 1}, {2, 2}},
+			},
+		},
+	},
+	{
+		Name: "database revision specs: delimiter conflicts in branch names",
+		SetUpScript: []string{
+			"call dolt_checkout('-b', 'branch@');",
+			"create table t01 (pk int primary key, c1 int);",
+			"call dolt_commit('-Am', 'creating table t01 on `branch@`');",
+			"call dolt_checkout('-b', 'elian/test', 'main');",
+			"create table t02 (pk int primary key, c2 int);",
+			"call dolt_commit('-Am', 'creating table t02 on `elian/test`');",
+			"call dolt_checkout('-b', 'elian/test@', 'main');",
+			"create table t03 (pk int primary key, c3 int);",
+			"call dolt_commit('-Am', 'creating table t03 on `elian/test@`');",
+			"call dolt_checkout('-b', 'elian@test@', 'main');",
+			"create table t04 (pk int primary key, c4 int);",
+			"call dolt_commit('-Am', 'creating table t04 on `elian@test@`');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query:    "call dolt_checkout('branch@');",
+				Expected: []sql.Row{{0, "Switched to branch 'branch@'"}},
+			},
+			{
+				Query:    "select active_branch();",
+				Expected: []sql.Row{{"branch@"}},
+			},
+			{
+				Query:    "use `Mydb@Branch@`;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select database();",
+				Expected: []sql.Row{{"mydb@branch@"}},
+			},
+			{
+				Query:    "select * from t01;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select * from `mydb@branch@`.`t01`",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select table_name from information_schema.tables where table_schema = database() and table_name = 't01';",
+				Expected: []sql.Row{{"t01"}},
+			},
+			{
+				Query:       "select * from t02;",
+				ExpectedErr: sql.ErrTableNotFound,
+			},
+			{
+				Query:    "use `mydb@elian/test`;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select database();",
+				Expected: []sql.Row{{"mydb@elian/test"}},
+			},
+			{
+				Query:    "select active_branch();",
+				Expected: []sql.Row{{"elian/test"}},
+			},
+			{
+				Query:    "select * from t02;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select * from `mydb@elian/test`.`t02`;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select table_name from information_schema.tables where table_schema = database() and table_name = 't02';",
+				Expected: []sql.Row{{"t02"}},
+			},
+			{
+				Query:       "select * from t03;",
+				ExpectedErr: sql.ErrTableNotFound,
+			},
+			{
+				Query:    "use `mydb@elian/test@`;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select database();",
+				Expected: []sql.Row{{"mydb@elian/test@"}},
+			},
+			{
+				Query:    "select active_branch();",
+				Expected: []sql.Row{{"elian/test@"}},
+			},
+			{
+				Query:    "select * from t03;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select * from `mydb@elian/test@`.`t03`;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select table_name from information_schema.tables where table_schema = database() and table_name = 't03';",
+				Expected: []sql.Row{{"t03"}},
+			},
+			{
+				Query:       "select * from t04;",
+				ExpectedErr: sql.ErrTableNotFound,
+			},
+			{
+				Query:    "use `mydb@elian@test@`;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select database();",
+				Expected: []sql.Row{{"mydb@elian@test@"}},
+			},
+			{
+				Query:    "select active_branch();",
+				Expected: []sql.Row{{"elian@test@"}},
+			},
+			{
+				Query:    "select * from t04;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select * from `mydb@elian@test@`.`t04`;",
+				Expected: []sql.Row{},
+			},
+			{
+				Query:    "select table_name from information_schema.tables where table_schema = database() and table_name = 't04';",
+				Expected: []sql.Row{{"t04"}},
+			},
+			{
+				Query:       "select * from t01;",
+				ExpectedErr: sql.ErrTableNotFound,
 			},
 		},
 	},
