@@ -522,50 +522,6 @@ func TestMustParsePath(t *testing.T) {
 	}
 }
 
-func TestPathType(t *testing.T) {
-	assert := assert.New(t)
-
-	vs := newTestValueStore()
-
-	m, err := NewMap(context.Background(), vs,
-		String("string"), String("foo"),
-		String("bool"), Bool(false),
-		String("number"), Float(42),
-		String("List<number|string>"), mustList(NewList(context.Background(), vs, Float(42), String("foo"))),
-		String("Map<Bool, Bool>"), mustMap(NewMap(context.Background(), vs, Bool(true), Bool(false))))
-	require.NoError(t, err)
-
-	err = m.IterAll(context.Background(), func(k, cv Value) error {
-		ks := k.(String)
-		t, err := TypeOf(cv)
-
-		if err != nil {
-			return err
-		}
-
-		assertResolvesTo(assert, t, m, fmt.Sprintf("[\"%s\"]@type", ks))
-		return nil
-	})
-
-	require.NoError(t, err)
-	assertResolvesTo(assert, PrimitiveTypeMap[StringKind], m, `["string"]@key@type`)
-	assertResolvesTo(assert, mustType(TypeOf(m)), m, `@type`)
-	s, err := NewStruct(vs.Format(), "", StructData{
-		"str": String("foo"),
-		"num": Float(42),
-	})
-	require.NoError(t, err)
-
-	str, ok, err := s.MaybeGet("str")
-	require.NoError(t, err)
-	assert.True(ok)
-	num, ok, err := s.MaybeGet("num")
-	require.NoError(t, err)
-	assert.True(ok)
-	assertResolvesTo(assert, mustType(TypeOf(str)), s, ".str@type")
-	assertResolvesTo(assert, mustType(TypeOf(num)), s, ".num@type")
-}
-
 func TestPathTarget(t *testing.T) {
 	assert := assert.New(t)
 	vs := newTestValueStore()

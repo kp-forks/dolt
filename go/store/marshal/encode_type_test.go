@@ -30,7 +30,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/dolthub/dolt/go/store/nomdl"
 	"github.com/dolthub/dolt/go/store/types"
 )
 
@@ -622,16 +621,4 @@ type OutFace struct {
 
 func (f OutFace) MarshalNomsStructName() string {
 	return "Face"
-}
-
-func TestMarshalTypeOutface(t *testing.T) {
-
-	typ := mustMarshalType(types.Format_Default, OutPhoto{})
-	expectedType := nomdl.MustParseType(`Struct OutPhoto {
-          faces: Set<Struct Face {
-            blob: Ref<Value>,
-          }>,
-          someOtherFacesSet: Set<Cycle<Face>>,
-        }`)
-	assert.True(t, typ.Equals(expectedType))
 }

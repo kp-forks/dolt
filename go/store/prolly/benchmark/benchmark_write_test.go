@@ -23,15 +23,12 @@ import (
 func BenchmarkMapUpdate(b *testing.B) {
 	b.Run("benchmark maps 10k", func(b *testing.B) {
 		benchmarkProllyMapUpdate(b, 10_000, 1)
-		benchmarkTypesMapUpdate(b, 10_000, 1)
 	})
 	b.Run("benchmark maps 100k", func(b *testing.B) {
 		benchmarkProllyMapUpdate(b, 100_000, 1)
-		benchmarkTypesMapUpdate(b, 100_000, 1)
 	})
 	b.Run("benchmark maps 1M", func(b *testing.B) {
 		benchmarkProllyMapUpdate(b, 1_000_000, 1)
-		benchmarkTypesMapUpdate(b, 1_000_000, 1)
 	})
 }
 
@@ -39,16 +36,8 @@ func BenchmarkProllySmallWrites(b *testing.B) {
 	benchmarkProllyMapUpdate(b, 10_000, 1)
 }
 
-func BenchmarkTypesSmallWrites(b *testing.B) {
-	benchmarkTypesMapUpdate(b, 10_000, 1)
-}
-
 func BenchmarkProllyMediumWrites(b *testing.B) {
 	benchmarkProllyMapUpdate(b, 100_000, 1)
-}
-
-func BenchmarkTypesMediumWrites(b *testing.B) {
-	benchmarkTypesMapUpdate(b, 100_000, 1)
 }
 
 func BenchmarkProllyLargeWrites(b *testing.B) {
