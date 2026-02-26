@@ -141,7 +141,6 @@ func TestWalkRefs(t *testing.T) {
 	t.Run("Map", func(t *testing.T) {
 		t.Parallel()
 		vrw := newTestValueStore()
-		r := rand.New(rand.NewSource(0))
 
 		t.Run("OfRefs", func(t *testing.T) {
 			m, err := NewMap(context.Background(), vrw, mustValue(vrw.WriteValue(context.Background(), Float(42))), mustValue(vrw.WriteValue(context.Background(), Float(0))))
