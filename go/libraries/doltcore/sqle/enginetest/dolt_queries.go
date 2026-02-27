@@ -15,6 +15,7 @@
 package enginetest
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -5597,6 +5598,75 @@ var BranchStatusTableFunctionScriptTests = []queries.ScriptTest{
 	},
 }
 
+var JsonValueScriptTests = []queries.ScriptTest{
+	{
+		Name: "create JSON table",
+		SetUpScript: []string{
+			"create table js (pk int primary key, js json)",
+		},
+		Query:    "select * from js",
+		Expected: []sql.Row{},
+	},
+	{
+		Name: "insert into a JSON table",
+		SetUpScript: []string{
+			"create table js (pk int primary key, js json)",
+			`insert into js values (1, '{"a":1}'), (2, '{"b":2}')`,
+		},
+		Query: "select * from js",
+		Expected: []sql.Row{
+			{1, types.MustJSON(`{"a":1}`)},
+			{2, types.MustJSON(`{"b":2}`)},
+		},
+	},
+	{
+		Name: "update a JSON table",
+		SetUpScript: []string{
+			"create table js (pk int primary key, js json)",
+			`insert into js values (1, '{"a":1}'), (2, '{"b":2}')`,
+			`update js set js = '{"c":3}' where pk = 2`,
+		},
+		Query: "select * from js",
+		Expected: []sql.Row{
+			{1, types.MustJSON(`{"a":1}`)},
+			{2, types.MustJSON(`{"c":3}`)},
+		},
+	},
+	{
+		Name: "delete from a JSON table",
+		SetUpScript: []string{
+			"create table js (pk int primary key, js json)",
+			`insert into js values (1, '{"a":1}'), (2, '{"b":2}')`,
+			`delete from js where pk = 2`,
+		},
+		Query: "select * from js",
+		Expected: []sql.Row{
+			{1, types.MustJSON(`{"a":1}`)},
+		},
+	},
+	{
+		Name: "merge a JSON table",
+		SetUpScript: []string{
+			"create table js (pk int primary key, js json)",
+			`insert into js values (1, '{"a":1}'), (2, '{"b":2}')`,
+			"call dolt_add('.')",
+			"call dolt_commit('-m', 'added a JSON table')",
+			"call dolt_checkout('-b', 'other')",
+			`update js set js = '{"b":22}' where pk = 2`,
+			"call dolt_commit('-am', 'update row pk = 2')",
+			"call dolt_checkout('main')",
+			`update js set js = '{"a":11}' where pk = 1`,
+			"call dolt_commit('-am', 'update row pk = 1')",
+			"call dolt_merge('other')",
+		},
+		Query: "select * from js",
+		Expected: []sql.Row{
+			{1, types.MustJSON(`{"a":11}`)},
+			{2, types.MustJSON(`{"b":22}`)},
+		},
+	},
+}
+
 var LargeJsonObjectScriptTests = []queries.ScriptTest{
 	{
 		Name: "JSON under max length limit",
@@ -5631,9 +5701,6 @@ var LargeJsonObjectScriptTests = []queries.ScriptTest{
 		},
 		Assertions: []queries.ScriptTestAssertion{
 			{
-				// NOTE: This doesn't trigger the same error that we see with sql-server
-				//       because the Golang enginetests use an in-memory chunk store, and
-				//       not the filesystem journaling chunk store.
 				Query:    fmt.Sprintf(`insert into t (pk, j1) VALUES (1, '{"large_value": "%s"}');`, generateStringData(1024*1024*3)),
 				Expected: []sql.Row{{types.OkResult{RowsAffected: 1}}},
 			},
@@ -5643,6 +5710,56 @@ var LargeJsonObjectScriptTests = []queries.ScriptTest{
 			},
 		},
 	},
+}
+
+func init() {
+	LargeJsonObjectScriptTests = append(LargeJsonObjectScriptTests, generateLargeJsonRoundTripTests()...)
+}
+
+func generateLargeJsonRoundTripTests() []queries.ScriptTest {
+	const numRows = 10
+	const objSize = 100
+
+	var insertParts []string
+	for i := 0; i < numRows; i++ {
+		obj := make(map[string]string, objSize)
+		for j := 0; j < objSize; j++ {
+			obj[fmt.Sprintf("key_%d_%d", i, j)] = fmt.Sprintf("val_%d_%d", i, j)
+		}
+		bs, _ := json.Marshal(obj)
+		insertParts = append(insertParts, fmt.Sprintf("(%d, '%s')", i, string(bs)))
+	}
+
+	insertStmt := "insert into js values " + strings.Join(insertParts, ",")
+
+	assertions := make([]queries.ScriptTestAssertion, 0)
+
+	assertions = append(assertions, queries.ScriptTestAssertion{
+		Query:    "select count(*) from js",
+		Expected: []sql.Row{{numRows}},
+	})
+	assertions = append(assertions, queries.ScriptTestAssertion{
+		Query:    "select pk, json_length(js) from js order by pk limit 3",
+		Expected: []sql.Row{{0, objSize}, {1, objSize}, {2, objSize}},
+	})
+
+	for i := 0; i < 3; i++ {
+		assertions = append(assertions, queries.ScriptTestAssertion{
+			Query:    fmt.Sprintf(`select js->>"$.key_%d_0" from js where pk = %d`, i, i),
+			Expected: []sql.Row{{fmt.Sprintf("val_%d_0", i)}},
+		})
+	}
+
+	return []queries.ScriptTest{
+		{
+			Name: "round-trip large JSON objects",
+			SetUpScript: []string{
+				"create table js (pk int primary key, js json)",
+				insertStmt,
+			},
+			Assertions: assertions,
+		},
+	}
 }
 
 // generateStringData generates random string data of length |length|. The data is generated

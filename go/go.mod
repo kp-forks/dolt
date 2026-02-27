@@ -81,7 +81,6 @@ require (
 	github.com/oracle/oci-go-sdk/v65 v65.55.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.28.0
-	github.com/shirou/gopsutil/v3 v3.22.1
 	github.com/shirou/gopsutil/v4 v4.25.12
 	github.com/tidwall/gjson v1.14.4
 	github.com/tidwall/sjson v1.2.5
