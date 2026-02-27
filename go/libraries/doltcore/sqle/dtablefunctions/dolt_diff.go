@@ -667,7 +667,7 @@ func (dtf *DiffTableFunction) generateSchema(ctx *sql.Context, fromCommitVal, to
 		toSchForJoiner = dtf.overriddenSchema
 	}
 
-	diffTableSch, err := dtables.GetDiffTableSchemaAndJoiner(format, fromSchForJoiner, toSchForJoiner)
+	diffTableSch, err := dtables.GetDiffTableSchemaAndJoiner(fromSchForJoiner, toSchForJoiner)
 	if err != nil {
 		return err
 	}

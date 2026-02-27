@@ -1612,7 +1612,7 @@ func (t *AlterableDoltTable) columnChangeRequiresRewrite(oldColumn *sql.Column, 
 			return true
 		} else {
 			// This is overly broad, we could narrow this down a bit
-			compatibilityChecker := typecompatibility.NewTypeCompatabilityCheckerForStorageFormat(t.Format())
+			compatibilityChecker := typecompatibility.NewTypeCompatabilityChecker()
 			typeChangeInfo := compatibilityChecker.IsTypeChangeCompatible(existingCol.TypeInfo, newCol.TypeInfo)
 			return !typeChangeInfo.Compatible || typeChangeInfo.RewriteRows || typeChangeInfo.InvalidateSecondaryIndexes
 		}
