@@ -84,8 +84,6 @@ func NewTable(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore,
 
 // TableFromAddr deserializes the table in the chunk at |addr|.
 func TableFromAddr(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore, addr hash.Hash) (Table, error) {
-	types.AssertFormat_DOLT(vrw.Format())
-
 	val, err := vrw.MustReadValue(ctx, addr)
 	if err != nil {
 		return nil, err

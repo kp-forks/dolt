@@ -135,8 +135,6 @@ func (m refmapDatasetsMap) IterAll(ctx context.Context, cb func(string, hash.Has
 // then you should fetch the current root, then call DatasetsInRoot with that hash. Otherwise, another writer could
 // change the root value between when you get the root hash and call this method.
 func (db *database) Datasets(ctx context.Context) (DatasetsMap, error) {
-	types.AssertFormat_DOLT(db.Format())
-
 	rootHash, err := db.rt.Root(ctx)
 	if err != nil {
 		return nil, err
@@ -180,8 +178,6 @@ func (db *database) GetDatasetByRootHash(ctx context.Context, datasetID string, 
 }
 
 func (db *database) DatasetsByRootHash(ctx context.Context, rootHash hash.Hash) (DatasetsMap, error) {
-	types.AssertFormat_DOLT(db.Format())
-
 	rm, err := db.loadDatasetsRefmap(ctx, rootHash)
 	if err != nil {
 		return nil, err
@@ -827,7 +823,6 @@ func (db *database) update(
 		err  error
 		root hash.Hash
 	)
-	types.AssertFormat_DOLT(db.Format())
 
 	for {
 		root, err = db.rt.Root(ctx)

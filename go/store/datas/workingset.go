@@ -107,8 +107,6 @@ type WorkingSetSpec struct {
 // ```
 // where M is a struct type and R is a ref type.
 func newWorkingSet(ctx context.Context, db *database, workingSetSpec WorkingSetSpec) (hash.Hash, error) {
-	types.AssertFormat_DOLT(db.Format())
-
 	meta := workingSetSpec.Meta
 	workingRef := workingSetSpec.WorkingRoot
 	stagedRef := workingSetSpec.StagedRoot
@@ -198,16 +196,12 @@ func workingset_flatbuffer(working hash.Hash, staged *hash.Hash, mergeState *Mer
 }
 
 func NewMergeState(
-	ctx context.Context,
-	vrw types.ValueReadWriter,
 	preMergeWorking types.Ref,
 	commit *Commit,
 	commitSpecStr string,
 	unmergableTables []string,
 	isCherryPick bool,
 ) (*MergeState, error) {
-	types.AssertFormat_DOLT(vrw.Format())
-
 	ms := &MergeState{
 		preMergeWorkingAddr: new(hash.Hash),
 		fromCommitAddr:      new(hash.Hash),

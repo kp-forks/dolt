@@ -1301,7 +1301,7 @@ func (ddb *DoltDB) GetTuple(ctx context.Context, key string) ([]byte, bool, erro
 		return nil, false, nil
 	}
 
-	tup, err := datas.LoadTuple(ctx, ddb.Format(), ddb.NodeStore(), ddb.ValueReadWriter(), ds)
+	tup, err := datas.LoadTuple(ctx, ddb.NodeStore(), ddb.ValueReadWriter(), ds)
 	if err != nil {
 		return nil, false, err
 	}
@@ -2200,7 +2200,7 @@ func (ddb *DoltDB) AddStash(ctx context.Context, head *Commit, stash RootValue, 
 	}
 
 	// this either creates new stash list dataset or loads current stash list dataset if exists.
-	stashList, err := datas.LoadStashList(ctx, nbf, ddb.NodeStore(), vrw, stashesDS)
+	stashList, err := datas.LoadStashList(ctx, ddb.NodeStore(), vrw, stashesDS)
 	if err != nil {
 		return err
 	}
@@ -2246,7 +2246,7 @@ func (ddb *DoltDB) GetStatistics(ctx context.Context) (prolly.Map, error) {
 		return prolly.Map{}, ErrNoStatistics
 	}
 
-	stats, err := datas.LoadStatistics(ctx, ddb.Format(), ddb.NodeStore(), ddb.ValueReadWriter(), ds)
+	stats, err := datas.LoadStatistics(ctx, ddb.NodeStore(), ddb.ValueReadWriter(), ds)
 	if err != nil {
 		return prolly.Map{}, err
 	}
@@ -2270,7 +2270,7 @@ func (ddb *DoltDB) RemoveStashAtIdx(ctx context.Context, idx int, stashName stri
 	}
 
 	vrw := ddb.ValueReadWriter()
-	stashList, err := datas.LoadStashList(ctx, ddb.Format(), ddb.NodeStore(), vrw, stashesDS)
+	stashList, err := datas.LoadStashList(ctx, ddb.NodeStore(), vrw, stashesDS)
 	if err != nil {
 		return err
 	}

@@ -252,7 +252,6 @@ func (f *foreignKeyViolationWriter) StartFK(ctx *sql.Context, fk doltdb.ForeignK
 		return err
 	}
 
-	types.AssertFormat_DOLT(tbl.Format())
 	arts, err := tbl.GetArtifacts(ctx)
 	if err != nil {
 		return err
@@ -266,8 +265,6 @@ func (f *foreignKeyViolationWriter) StartFK(ctx *sql.Context, fk doltdb.ForeignK
 }
 
 func (f *foreignKeyViolationWriter) EndCurrFK(ctx context.Context) error {
-	types.AssertFormat_DOLT(f.currTbl.Format())
-
 	artMap, err := f.artEditor.Flush(ctx)
 	if err != nil {
 		return err

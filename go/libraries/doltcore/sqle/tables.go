@@ -1090,7 +1090,6 @@ func (t *WritableDoltTable) truncate(
 }
 
 func copyConstraintViolationsAndConflicts(ctx context.Context, from, to *doltdb.Table) (*doltdb.Table, error) {
-	types.AssertFormat_DOLT(to.Format())
 	arts, err := from.GetArtifacts(ctx)
 	if err != nil {
 		return nil, err
@@ -2412,8 +2411,6 @@ func (t *AlterableDoltTable) RenameIndex(ctx *sql.Context, fromIndexName string,
 
 // CreateFulltextIndex implements fulltext.IndexAlterableTable
 func (t *AlterableDoltTable) CreateFulltextIndex(ctx *sql.Context, idx sql.IndexDef, keyCols fulltext.KeyColumns, tableNames fulltext.IndexTableNames) error {
-	types.AssertFormat_DOLT(t.Format())
-
 	if err := dsess.CheckAccessForDb(ctx, t.db, branch_control.Permissions_Write); err != nil {
 		return err
 	}
