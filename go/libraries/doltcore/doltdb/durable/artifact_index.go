@@ -80,7 +80,7 @@ func artifactIndexFromAddr(ctx context.Context, vrw types.ValueReadWriter, ns tr
 	if err != nil {
 		return nil, err
 	}
-	
+
 	switch vrw.Format() {
 	case types.Format_LD_1:
 		panic("Unsupported format " + vrw.Format().VersionString())
