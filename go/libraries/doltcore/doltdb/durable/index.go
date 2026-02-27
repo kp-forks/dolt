@@ -327,8 +327,6 @@ func (i prollyIndex) DebugString(ctx context.Context, ns tree.NodeStore, schema 
 
 // NewIndexSet returns an empty IndexSet.
 func NewIndexSet(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore) (IndexSet, error) {
-	types.AssertFormat_DOLT(vrw.Format())
-
 	emptyam, err := prolly.NewEmptyAddressMap(ns)
 	if err != nil {
 		return nil, err
