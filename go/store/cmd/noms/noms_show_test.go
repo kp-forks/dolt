@@ -34,7 +34,6 @@ import (
 	"github.com/dolthub/dolt/go/store/spec"
 	"github.com/dolthub/dolt/go/store/types"
 	"github.com/dolthub/dolt/go/store/util/clienttest"
-	"github.com/dolthub/dolt/go/store/util/test"
 )
 
 func TestNomsShow(t *testing.T) {
@@ -70,39 +69,6 @@ func (s *nomsShowTestSuite) writeTestData(str string, value types.Value) types.R
 	s.NoError(err)
 
 	return r1
-}
-
-func (s *nomsShowTestSuite) TestNomsShow() {
-	if types.Format_Default != types.Format_LD_1 {
-		s.T().Skip()
-	}
-	datasetName := "dsTest"
-	str := spec.CreateValueSpecString("nbs", s.DBDir, datasetName)
-
-	s1 := types.String("test string")
-	r := s.writeTestData(str, s1)
-	res, _ := s.MustRun(main, []string{"show", str})
-	s.Equal(res1, res)
-
-	str1 := spec.CreateValueSpecString("nbs", s.DBDir, "#"+r.TargetHash().String())
-	res, _ = s.MustRun(main, []string{"show", str1})
-	s.Equal(res2, res)
-
-	sp := s.spec(str)
-	defer sp.Close()
-	list, err := types.NewList(context.Background(), sp.GetVRW(context.Background()), types.String("elem1"), types.Float(2), types.String("elem3"))
-	s.NoError(err)
-	r = s.writeTestData(str, list)
-	res, _ = s.MustRun(main, []string{"show", str})
-	test.EqualsIgnoreHashes(s.T(), res3, res)
-
-	str1 = spec.CreateValueSpecString("nbs", s.DBDir, "#"+r.TargetHash().String())
-	res, _ = s.MustRun(main, []string{"show", str1})
-	s.Equal(res4, res)
-
-	_ = s.writeTestData(str, s1)
-	res, _ = s.MustRun(main, []string{"show", str})
-	test.EqualsIgnoreHashes(s.T(), res5, res)
 }
 
 func (s *nomsShowTestSuite) TestNomsShowNotFound() {

@@ -553,7 +553,6 @@ func RunJsonValueScriptsTest(t *testing.T, harness DoltEnginetestHarness) {
 }
 
 func RunLargeJsonObjectsTest(t *testing.T, harness DoltEnginetestHarness) {
-	SkipByDefaultInCI(t)
 	defer harness.Close()
 	for _, script := range LargeJsonObjectScriptTests {
 		enginetest.TestScript(t, harness, script)
