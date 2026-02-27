@@ -2401,20 +2401,35 @@ func (ddb *DoltDB) PurgeCaches() {
 }
 
 const (
-	DbRevisionDelimiter = "/"
+	DbRevisionDelimiter      = "/"
+	DbRevisionDelimiterAlias = "@"
 )
+
+// DBRevisionDelimiters contains revision delimiters for database names.
+var DBRevisionDelimiters = []string{DbRevisionDelimiter, DbRevisionDelimiterAlias}
 
 // RevisionDbName returns the name of the revision db for the base name and revision string given
 func RevisionDbName(baseName string, rev string) string {
 	return baseName + DbRevisionDelimiter + rev
 }
 
-func SplitRevisionDbName(dbName string) (string, string) {
-	var baseName, rev string
-	parts := strings.SplitN(dbName, DbRevisionDelimiter, 2)
-	baseName = parts[0]
-	if len(parts) > 1 {
-		rev = parts[1]
+// SplitRevisionDbName returns the base database name and revision from a revision-qualified name. Resolves on the
+// [DbRevisionDelimiter] and [DbRevisionDelimiterAlias]. Unqualified names are returned as the base name with an
+// empty revision. If both delimiters are present in the DB name, the one with the lowest index is used.
+func SplitRevisionDbName(dbName string) (base string, revision string) {
+	lowest := len(dbName)
+	base = dbName
+	for _, delimiter := range DBRevisionDelimiters {
+		if idx := strings.Index(dbName, delimiter); idx != -1 {
+			if idx < lowest {
+				lowest = idx
+				if b, r, ok := strings.Cut(dbName, delimiter); ok {
+					base = b
+					revision = r
+				}
+			}
+		}
 	}
-	return baseName, rev
+
+	return base, revision
 }

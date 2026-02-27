@@ -26,10 +26,6 @@ import (
 	"github.com/dolthub/dolt/go/libraries/doltcore/env"
 )
 
-func init() {
-	DoltProcedureTests = append(DoltProcedureTests, DoltBackupProcedureScripts...)
-}
-
 // fileUrl returns a file:// URL path.
 func fileUrl(path string) string {
 	path = filepath.Join(os.TempDir(), path)

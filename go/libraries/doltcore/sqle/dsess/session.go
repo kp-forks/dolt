@@ -174,11 +174,7 @@ func GetTableResolver(ctx *sql.Context, dbName string) (doltdb.TableResolver, er
 // lookupDbState is the private version of LookupDbState, returning a struct that has more information available than
 // the interface returned by the public method.
 func (d *DoltSession) lookupDbState(ctx *sql.Context, dbName string) (*branchState, bool, error) {
-	dbName = strings.ToLower(dbName)
-
-	var baseName, rev string
-	baseName, rev = doltdb.SplitRevisionDbName(dbName)
-
+	baseName, rev := doltdb.SplitRevisionDbName(strings.ToLower(dbName))
 	d.mu.Lock()
 	dbState, dbStateFound := d.dbStates[baseName]
 	d.mu.Unlock()
@@ -190,7 +186,6 @@ func (d *DoltSession) lookupDbState(ctx *sql.Context, dbName string) (*branchSta
 		}
 
 		branchState, ok := dbState.heads[strings.ToLower(rev)]
-
 		if ok {
 			if dbState.Err != nil {
 				return nil, false, dbState.Err
@@ -199,15 +194,7 @@ func (d *DoltSession) lookupDbState(ctx *sql.Context, dbName string) (*branchSta
 		}
 	}
 
-	// No state for this db / branch combination yet, look it up from the provider. We use the unqualified DB name (no
-	// branch) if the current DB has not yet been loaded into this session. It will resolve to that DB's default branch
-	// in that case.
-	revisionQualifiedName := dbName
-	if rev != "" {
-		revisionQualifiedName = doltdb.RevisionDbName(baseName, rev)
-	}
-
-	database, ok, err := d.provider.SessionDatabase(ctx, revisionQualifiedName)
+	database, ok, err := d.provider.SessionDatabase(ctx, doltdb.RevisionDbName(baseName, rev))
 	if err != nil {
 		return nil, false, err
 	}
