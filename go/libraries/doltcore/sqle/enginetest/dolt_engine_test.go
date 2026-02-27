@@ -1149,6 +1149,11 @@ func TestCallAsOf(t *testing.T) {
 	RunCallAsOfTest(t, h)
 }
 
+func TestJsonValueScripts(t *testing.T) {
+	harness := newDoltEnginetestHarness(t)
+	RunJsonValueScriptsTest(t, harness)
+}
+
 func TestLargeJsonObjects(t *testing.T) {
 	harness := newDoltEnginetestHarness(t)
 	RunLargeJsonObjectsTest(t, harness)
