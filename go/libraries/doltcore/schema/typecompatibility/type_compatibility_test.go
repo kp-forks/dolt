@@ -26,7 +26,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/dolthub/dolt/go/libraries/doltcore/schema/typeinfo"
-	storetypes "github.com/dolthub/dolt/go/store/types"
 )
 
 type typeChangeCompatibilityTest struct {
