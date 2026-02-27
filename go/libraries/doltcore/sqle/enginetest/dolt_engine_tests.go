@@ -2069,18 +2069,6 @@ func runMergeScriptTestsInBothDirections(t *testing.T, tests []MergeScriptTest, 
 	})
 }
 
-func SkipByDefaultInCI(t *testing.T) {
-	if os.Getenv("CI") != "" && os.Getenv("DOLT_TEST_RUN_NON_RACE_TESTS") == "" {
-		t.Skip()
-	}
-}
-
-var newFormatSkippedScripts = []string{
-	// Different query plans
-	"Partial indexes are used and return the expected result",
-	"Multiple indexes on the same columns in a different order",
-}
-
 func skipPreparedTests(t *testing.T) {
 	if skipPrepared {
 		t.Skip("skip prepared")

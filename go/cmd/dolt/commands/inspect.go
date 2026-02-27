@@ -21,8 +21,6 @@ import (
 	"math"
 	"path/filepath"
 
-	"github.com/dolthub/dolt/go/store/types"
-
 	"github.com/dolthub/dolt/go/cmd/dolt/cli"
 	"github.com/dolthub/dolt/go/cmd/dolt/errhand"
 	"github.com/dolthub/dolt/go/libraries/doltcore/dbfactory"
