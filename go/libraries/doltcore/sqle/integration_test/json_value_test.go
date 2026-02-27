@@ -45,10 +45,6 @@ type jsonValueTest struct {
 }
 
 func TestJsonValues(t *testing.T) {
-	if types.Format_Default != types.Format_LD_1 {
-		t.Skip() // todo: convert to enginetests
-	}
-
 	SkipByDefaultInCI(t)
 	setupCommon := []testCommand{
 		{cmd.SqlCmd{}, args{"-q", `create table js (pk int primary key, js json);`}},
