@@ -1798,7 +1798,7 @@ func (t *AlterableDoltTable) RewriteInserter(
 		return nil, fmt.Errorf("cannot rebuild index on a headless branch")
 	}
 
-	writeSession := writer.NewWriteSession(dt.Format(), newWs, ait, dbState.WriteSession().GetOptions())
+	writeSession := writer.NewWriteSession(newWs, ait, dbState.WriteSession().GetOptions())
 
 	ed, err := writeSession.GetTableWriter(ctx, t.TableName(), t.db.RevisionQualifiedName(), sess.SetWorkingRoot, false)
 	if err != nil {
@@ -1845,7 +1845,7 @@ func fullTextRewriteEditor(
 		return nil, fmt.Errorf("cannot rebuild index on read only database %s", t.Name())
 	}
 
-	writeSession := writer.NewWriteSession(dt.Format(), newWs, ait, dbState.WriteSession().GetOptions())
+	writeSession := writer.NewWriteSession(newWs, ait, dbState.WriteSession().GetOptions())
 
 	parentEditor, err := writeSession.GetTableWriter(ctx, t.TableName(), t.db.RevisionQualifiedName(), sess.SetWorkingRoot, false)
 	if err != nil {

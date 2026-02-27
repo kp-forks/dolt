@@ -352,7 +352,7 @@ func (a *binlogReplicaApplier) replicaBinlogEventHandler(ctx *sql.Context) error
 			if sqlError, isSqlError := err.(*mysql.SQLError); isSqlError {
 				ctx.GetLogger().Infof("error on replication connection: %v", err)
 				badConnection := sqlError.Message == io.EOF.Error() ||
-					strings.HasPrefix(sqlError.Message, io.ErrUnexpectedEOF.Error())
+						strings.HasPrefix(sqlError.Message, io.ErrUnexpectedEOF.Error())
 				if badConnection {
 					DoltBinlogReplicaController.updateStatus(func(status *binlogreplication.ReplicaStatus) {
 						status.LastIoError = sqlError.Message
@@ -829,8 +829,6 @@ func getTableWriter(ctx *sql.Context, engine *gms.Engine, tableName, databaseNam
 		return nil, nil, fmt.Errorf("unexpected database type: %T", database)
 	}
 
-	binFormat := sqlDatabase.DbData().Ddb.Format()
-
 	ws, err := env.WorkingSet(ctx, sqlDatabase.GetDoltDB(), sqlDatabase.DbData().Rsr)
 	if err != nil {
 		return nil, nil, err
@@ -841,7 +839,7 @@ func getTableWriter(ctx *sql.Context, engine *gms.Engine, tableName, databaseNam
 		return nil, nil, err
 	}
 
-	writeSession := writer.NewWriteSession(binFormat, ws, tracker, sqlDatabase.EditOptions())
+	writeSession := writer.NewWriteSession(ws, tracker, sqlDatabase.EditOptions())
 
 	ds := dsess.DSessFromSess(ctx.Session)
 	setter := ds.SetWorkingRoot
@@ -1023,7 +1021,7 @@ func loadReplicaServerId(ctx *sql.Context) (uint32, error) {
 	serverId, ok = value.(uint32)
 	if !ok || serverId == 0 {
 		return 0, fmt.Errorf("invalid server ID configured for @@GLOBAL.server_id (%v); "+
-			"must be an integer greater than zero and less than 4,294,967,296", serverId)
+				"must be an integer greater than zero and less than 4,294,967,296", serverId)
 	}
 
 	return serverId, nil
