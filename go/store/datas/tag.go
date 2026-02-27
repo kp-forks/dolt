@@ -38,23 +38,22 @@ type TagOptions struct {
 }
 
 // newTag serializes a tag pointing to |commitAddr| with the given |meta|,
-// persists it, and returns its addr. Also returns a types.Ref to the tag, if
-// the format for |db| is noms.
-func newTag(ctx context.Context, db *database, commitAddr hash.Hash, meta *TagMeta) (hash.Hash, types.Ref, error) {
+// persists it, and returns its addr.
+func newTag(ctx context.Context, db *database, commitAddr hash.Hash, meta *TagMeta) (hash.Hash, error) {
 	types.AssertFormat_DOLT(db.Format())
 
 	data := tagSerialMessage(commitAddr, meta)
 	r, err := db.WriteValue(ctx, types.SerialMessage(data))
 	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
+		return hash.Hash{}, err
 	}
 
 	ref, err := types.ToRefOfValue(r, db.Format())
 	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
+		return hash.Hash{}, err
 	}
 
-	return ref.TargetHash(), ref, nil
+	return ref.TargetHash(), nil
 }
 
 func tagSerialMessage(commitAddr hash.Hash, meta *TagMeta) serial.Message {

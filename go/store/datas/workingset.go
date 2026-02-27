@@ -106,7 +106,7 @@ type WorkingSetSpec struct {
 //
 // ```
 // where M is a struct type and R is a ref type.
-func newWorkingSet(ctx context.Context, db *database, workingSetSpec WorkingSetSpec) (hash.Hash, types.Ref, error) {
+func newWorkingSet(ctx context.Context, db *database, workingSetSpec WorkingSetSpec) (hash.Hash, error) {
 	types.AssertFormat_DOLT(db.Format())
 
 	meta := workingSetSpec.Meta
@@ -120,15 +120,15 @@ func newWorkingSet(ctx context.Context, db *database, workingSetSpec WorkingSetS
 
 	r, err := db.WriteValue(ctx, types.SerialMessage(data))
 	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
+		return hash.Hash{}, err
 	}
 
 	ref, err := types.ToRefOfValue(r, db.Format())
 	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
+		return hash.Hash{}, err
 	}
 
-	return ref.TargetHash(), ref, nil
+	return ref.TargetHash(), nil
 }
 
 // workingset_flatbuffer creates a flatbuffer message for working set metadata.

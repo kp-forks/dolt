@@ -592,7 +592,7 @@ func (db *database) Tag(ctx context.Context, ds Dataset, commitAddr hash.Hash, o
 		ctx,
 		ds,
 		func(ds Dataset) error {
-			addr, _, err := newTag(ctx, db, commitAddr, opts.Meta)
+			addr, err := newTag(ctx, db, commitAddr, opts.Meta)
 			if err != nil {
 				return err
 			}
@@ -679,7 +679,7 @@ func (db *database) UpdateWorkingSet(ctx context.Context, ds Dataset, workingSet
 		ctx,
 		ds,
 		func(ds Dataset) error {
-			addr, _, err := newWorkingSet(ctx, db, workingSetSpec)
+			addr, err := newWorkingSet(ctx, db, workingSetSpec)
 			if err != nil {
 				return err
 			}
@@ -728,12 +728,12 @@ func (db *database) PersistGhostCommitIDs(ctx context.Context, ghosts hash.HashS
 // global locking mechanism as UpdateWorkingSet.
 // The current dataset head will be filled in as the first parent of the new commit if not already present.
 func (db *database) CommitWithWorkingSet(
-		ctx context.Context,
-		commitDS, workingSetDS Dataset,
-		val types.Value, workingSetSpec WorkingSetSpec,
-		prevWsHash hash.Hash, opts CommitOptions,
+	ctx context.Context,
+	commitDS, workingSetDS Dataset,
+	val types.Value, workingSetSpec WorkingSetSpec,
+	prevWsHash hash.Hash, opts CommitOptions,
 ) (Dataset, Dataset, error) {
-	wsAddr, _, err := newWorkingSet(ctx, db, workingSetSpec)
+	wsAddr, err := newWorkingSet(ctx, db, workingSetSpec)
 	if err != nil {
 		return Dataset{}, Dataset{}, err
 	}
@@ -820,8 +820,8 @@ func (db *database) Delete(ctx context.Context, ds Dataset, wsIDStr string) (Dat
 }
 
 func (db *database) update(
-		ctx context.Context,
-		editFB func(context.Context, prolly.AddressMap) (prolly.AddressMap, error),
+	ctx context.Context,
+	editFB func(context.Context, prolly.AddressMap) (prolly.AddressMap, error),
 ) error {
 	var (
 		err  error
@@ -860,8 +860,6 @@ func (db *database) update(
 			return err
 		}
 	}
-
-	return nil
 }
 
 func (db *database) doDelete(ctx context.Context, datasetIDstr string, workingsetIDstr string) error {
