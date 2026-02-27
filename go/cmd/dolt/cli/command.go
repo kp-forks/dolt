@@ -251,7 +251,7 @@ func (hc SubCommandHandler) handleCommand(ctx context.Context, commandStr string
 		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()
 	}
-	
+
 	ret := cmd.Exec(ctx, commandStr, args, dEnv, cliCtx)
 
 	if evt != nil {
