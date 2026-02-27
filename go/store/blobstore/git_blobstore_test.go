@@ -282,6 +282,43 @@ func TestGitBlobstore_CleanupOwnedLocalRef_DeletesRef(t *testing.T) {
 	require.Equal(t, bs.localRef, rnf.Ref)
 }
 
+func TestGitBlobstore_Close_DeletesOwnedLocalAndTrackingRefs(t *testing.T) {
+	requireGitOnPath(t)
+
+	ctx := context.Background()
+	remoteRepo, localRepo, localRunner := newRemoteAndLocalRepos(t, ctx)
+	_, err := remoteRepo.SetRefToTree(ctx, DoltDataRef, map[string][]byte{
+		"manifest": []byte("seed\n"),
+	}, "seed")
+	require.NoError(t, err)
+
+	bs, err := NewGitBlobstoreWithOptions(localRepo.GitDir, DoltDataRef, GitBlobstoreOptions{RemoteName: "origin"})
+	require.NoError(t, err)
+
+	// Force refs to be created via a remote-managed read.
+	ok, err := bs.Exists(ctx, "manifest")
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	localAPI := git.NewGitAPIImpl(localRunner)
+	_, err = localAPI.ResolveRefCommit(ctx, bs.localRef)
+	require.NoError(t, err)
+	_, err = localAPI.ResolveRefCommit(ctx, bs.remoteTrackingRef)
+	require.NoError(t, err)
+
+	require.NoError(t, bs.Close())
+
+	_, err = localAPI.ResolveRefCommit(ctx, bs.localRef)
+	var rnf *git.RefNotFoundError
+	require.ErrorAs(t, err, &rnf)
+	require.Equal(t, bs.localRef, rnf.Ref)
+
+	_, err = localAPI.ResolveRefCommit(ctx, bs.remoteTrackingRef)
+	rnf = nil
+	require.ErrorAs(t, err, &rnf)
+	require.Equal(t, bs.remoteTrackingRef, rnf.Ref)
+}
+
 func TestGitBlobstore_RemoteManaged_PutPushesToRemote(t *testing.T) {
 	requireGitOnPath(t)
 
@@ -439,14 +476,11 @@ func TestGitBlobstore_RemoteManaged_PutRetriesOnLeaseFailure(t *testing.T) {
 	remoteHead, err := remoteAPI.ResolveRefCommit(ctx, DoltDataRef)
 	require.NoError(t, err)
 
-	// Verify we rebuilt on top of the advanced remote head (i.e. parent is externalHead).
+	// Snapshot-only semantics: new remote head should be a non-merge commit with no parent.
 	if v := externalHead.Load(); v != nil {
-		wantParent := v.(git.OID)
-		out, err := remoteRunner.Run(ctx, git.RunOptions{}, "rev-parse", remoteHead.String()+"^")
+		out, err := remoteRunner.Run(ctx, git.RunOptions{}, "cat-file", "-p", remoteHead.String())
 		require.NoError(t, err)
-		require.Equal(t, wantParent.String(), string(bytes.TrimSpace(out)))
-		_, err = remoteRunner.Run(ctx, git.RunOptions{}, "rev-parse", remoteHead.String()+"^2")
-		require.Error(t, err) // not a merge commit
+		require.NotContains(t, string(out), "\nparent ")
 	}
 
 	oid, typ, err := remoteAPI.ResolvePathObject(ctx, remoteHead, "k")
@@ -628,12 +662,10 @@ func TestGitBlobstore_RemoteManaged_PutOverwritesDivergedLocalRef_NoMergeCommit(
 	remoteHeadAfter, err := remoteAPI.ResolveRefCommit(ctx, DoltDataRef)
 	require.NoError(t, err)
 
-	// New remote head is a normal (non-merge) commit built on remoteHeadBefore.
-	out, err := remoteRunner.Run(ctx, git.RunOptions{}, "rev-parse", remoteHeadAfter.String()+"^")
+	// Snapshot-only semantics: new remote head should be a non-merge commit with no parent.
+	out, err := remoteRunner.Run(ctx, git.RunOptions{}, "cat-file", "-p", remoteHeadAfter.String())
 	require.NoError(t, err)
-	require.Equal(t, remoteHeadBefore.String(), string(bytes.TrimSpace(out)))
-	_, err = remoteRunner.Run(ctx, git.RunOptions{}, "rev-parse", remoteHeadAfter.String()+"^2")
-	require.Error(t, err)
+	require.NotContains(t, string(out), "\nparent ")
 
 	// Local-only divergence should not be present on remote.
 	_, _, err = remoteAPI.ResolvePathObject(ctx, remoteHeadAfter, "local")

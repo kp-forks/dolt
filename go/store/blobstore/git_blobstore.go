@@ -524,6 +524,34 @@ func (gbs *GitBlobstore) CleanupOwnedLocalRef(ctx context.Context) error {
 	return err
 }
 
+// Close best-effort deletes this instance's UUID-owned refs.
+func (gbs *GitBlobstore) Close() error {
+	ctx := context.Background()
+
+	gbs.mu.Lock()
+	defer gbs.mu.Unlock()
+
+	deleteIfExists := func(ref string) error {
+		if ref == "" {
+			return nil
+		}
+		_, ok, err := gbs.api.TryResolveRefCommit(ctx, ref)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return nil
+		}
+		_, err = gbs.runner.Run(ctx, git.RunOptions{}, "update-ref", "-d", ref)
+		return err
+	}
+
+	return errors.Join(
+		deleteIfExists(gbs.localRef),
+		deleteIfExists(gbs.remoteTrackingRef),
+	)
+}
+
 func (gbs *GitBlobstore) syncForRead(ctx context.Context) error {
 	if err := gbs.validateRemoteManaged(); err != nil {
 		return err
@@ -1034,15 +1062,11 @@ func (gbs *GitBlobstore) buildCommitForKeyWrite(ctx context.Context, parent git.
 		return "", err
 	}
 
-	var parentPtr *git.OID
-	if hasParent && parent != "" {
-		p := parent
-		parentPtr = &p
-	}
-
-	commitOID, err := gbs.api.CommitTree(ctx, treeOID, parentPtr, msg, gbs.identity)
+	// Snapshot-only semantics: create commits with no parent so old snapshots become unreachable
+	// once refs advance (enables pruning / avoids cache history growth).
+	commitOID, err := gbs.api.CommitTree(ctx, treeOID, nil, msg, gbs.identity)
 	if err != nil && gbs.identity == nil && isMissingGitIdentityErr(err) {
-		commitOID, err = gbs.api.CommitTree(ctx, treeOID, parentPtr, msg, defaultGitBlobstoreIdentity())
+		commitOID, err = gbs.api.CommitTree(ctx, treeOID, nil, msg, defaultGitBlobstoreIdentity())
 	}
 	if err != nil {
 		return "", err

@@ -234,6 +234,9 @@ func (bsp *blobstorePersister) PruneTableFiles(ctx context.Context, keeper func(
 }
 
 func (bsp *blobstorePersister) Close() error {
+	if c, ok := bsp.bs.(io.Closer); ok {
+		return c.Close()
+	}
 	return nil
 }
 
