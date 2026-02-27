@@ -12,11 +12,11 @@ const database = process.env.DB_NAME ?? "dolt"
 
 export const AppDataSource = new DataSource({
     type: "mysql",
-    host,
-    port,
-    username,
-    password,
-    database,
+    host: host,
+    port: port,
+    username: username,
+    password: password,
+    database: database,
     synchronize: true,
     logging: false,
     entities: [User],
