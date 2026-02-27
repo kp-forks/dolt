@@ -63,28 +63,6 @@ func TestRefInSet(t *testing.T) {
 	assert.True(r.Equals(r2))
 }
 
-func TestRefInMap(t *testing.T) {
-	assert := assert.New(t)
-
-	vs := newTestValueStore()
-
-	m, err := NewMap(context.Background(), vs)
-	require.NoError(t, err)
-	r, err := NewRef(m, vs.Format())
-	require.NoError(t, err)
-	m, err = m.Edit().Set(Float(0), r).Set(r, Float(1)).Map(context.Background())
-	require.NoError(t, err)
-	r2, ok, err := m.MaybeGet(context.Background(), Float(0))
-	require.NoError(t, err)
-	assert.True(ok)
-	assert.True(r.Equals(r2))
-
-	i, ok, err := m.MaybeGet(context.Background(), r)
-	require.NoError(t, err)
-	assert.True(ok)
-	assert.Equal(int32(1), int32(i.(Float)))
-}
-
 func TestRefChunks(t *testing.T) {
 	assert := assert.New(t)
 

@@ -16,7 +16,6 @@ package edits
 
 import (
 	"context"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -31,41 +30,4 @@ func TestFlushingNoEdits(t *testing.T) {
 	eps, err := ef.Wait(ctx)
 	require.NoError(t, err)
 	require.Zero(t, len(eps))
-}
-
-func TestEditFlusher(t *testing.T) {
-	const numEditors = 10
-	ctx := context.Background()
-	vrw := types.NewMemoryValueStore()
-	nbf := vrw.Format()
-	ef := NewDiskEditFlusher(ctx, os.TempDir(), vrw)
-	for i := 0; i < numEditors; i++ {
-		ea := types.NewDumbEditAccumulator(vrw)
-		for j := 0; j < 100; j++ {
-			k, err := types.NewTuple(nbf, types.Int(i))
-			require.NoError(t, err)
-			v, err := types.NewTuple(nbf, types.Int(i*100+j))
-			require.NoError(t, err)
-			ea.AddEdit(k, v)
-		}
-
-		ef.Flush(ea, uint64(i))
-	}
-
-	eps, err := ef.Wait(ctx)
-	require.NoError(t, err)
-	require.Len(t, eps, numEditors)
-
-	for i := 0; i < numEditors; i++ {
-		require.Equal(t, uint64(i), eps[i].ID)
-		kvp, err := eps[i].Edits.Next(ctx)
-		require.NoError(t, err)
-		key, err := kvp.Key.Value(ctx)
-		require.NoError(t, err)
-		keyTuplvals, err := key.(types.Tuple).AsSlice()
-		require.NoError(t, err)
-		require.Equal(t, i, int(keyTuplvals[0].(types.Int)))
-		err = eps[i].Edits.Close(ctx)
-		require.NoError(t, err)
-	}
 }

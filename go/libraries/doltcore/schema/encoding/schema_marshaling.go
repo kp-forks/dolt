@@ -26,6 +26,8 @@ import (
 
 // MarshalSchema takes a Schema and converts it to a types.Value
 func MarshalSchema(ctx context.Context, vrw types.ValueReadWriter, sch schema.Schema) (types.Value, error) {
+	types.AssertFormat_DOLT(vrw.Format())
+
 	// Anyone calling this is going to serialize this to disk, so it's our last line of defense against defective schemas.
 	// Business logic should catch errors before this point, but this is a failsafe.
 	err := schema.ValidateColumnConstraints(sch.GetAllCols())
@@ -38,19 +40,7 @@ func MarshalSchema(ctx context.Context, vrw types.ValueReadWriter, sch schema.Sc
 		return nil, err
 	}
 
-	if vrw.Format().VersionString() != types.Format_DOLT.VersionString() {
-		for _, idx := range sch.Indexes().AllIndexes() {
-			if idx.IsSpatial() {
-				return nil, fmt.Errorf("spatial indexes are only supported in storage format __DOLT__")
-			}
-		}
-	}
-
-	if vrw.Format().UsesFlatbuffers() {
-		return SerializeSchema(ctx, vrw, sch)
-	}
-
-	panic("only __DOLT__ format is supported")
+	return SerializeSchema(ctx, vrw, sch)
 }
 
 type schCacheData struct {
@@ -62,11 +52,9 @@ var unmarshalledSchemaCache = map[hash.Hash]schCacheData{}
 
 // UnmarshalSchema takes a types.Value representing a Schema and Unmarshalls it into a schema.Schema.
 func UnmarshalSchema(ctx context.Context, nbf *types.NomsBinFormat, schemaVal types.Value) (schema.Schema, error) {
-	if nbf.UsesFlatbuffers() {
-		return DeserializeSchema(ctx, nbf, schemaVal)
-	}
+	types.AssertFormat_DOLT(nbf)
 
-	panic("only __DOLT__ format is supported")
+	return DeserializeSchema(ctx, nbf, schemaVal)
 }
 
 // UnmarshalSchemaAtAddr returns the schema at the given address, using the schema cache if possible.

@@ -89,11 +89,6 @@ func mustOrdSeq(ordSeq orderedSequence, err error) orderedSequence {
 	return ordSeq
 }
 
-func mustMIter(itr MapIterator, err error) MapIterator {
-	d.PanicIfError(err)
-	return itr
-}
-
 func mustSIter(itr SetIterator, err error) SetIterator {
 	d.PanicIfError(err)
 	return itr

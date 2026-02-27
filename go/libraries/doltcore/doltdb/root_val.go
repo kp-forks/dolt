@@ -156,22 +156,14 @@ type tableEdit struct {
 
 // NewRootValue returns a new RootValue. This is a variable as it's changed in Doltgres.
 var NewRootValue = func(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore, v types.Value) (RootValue, error) {
-	var storage rootValueStorage
+	types.AssertFormat_DOLT(vrw.Format())
 
-	if vrw.Format().UsesFlatbuffers() {
-		srv, err := serial.TryGetRootAsRootValue([]byte(v.(types.SerialMessage)), serial.MessagePrefixSz)
-		if err != nil {
-			return nil, err
-		}
-		storage = fbRvStorage{srv}
-	} else {
-		st, ok := v.(types.Struct)
-		if !ok {
-			return nil, errors.New("invalid value passed to newRootValue")
-		}
-
-		storage = nomsRvStorage{st}
+	srv, err := serial.TryGetRootAsRootValue([]byte(v.(types.SerialMessage)), serial.MessagePrefixSz)
+	if err != nil {
+		return nil, err
 	}
+	storage := fbRvStorage{srv}
+
 	ver, ok, err := storage.GetFeatureVersion()
 	if err != nil {
 		return nil, err
@@ -185,7 +177,7 @@ var NewRootValue = func(ctx context.Context, vrw types.ValueReadWriter, ns tree.
 		}
 	}
 
-	return &rootValue{vrw, ns, storage, nil, hash.Hash{}, 0, nil}, nil
+	return &rootValue{vrw: vrw, ns: ns, st: storage}, nil
 }
 
 // EmptyRootValue returns an empty RootValue. This is a variable as it's changed in Doltgres.
@@ -255,15 +247,10 @@ func decodeRootNomsValue(ctx context.Context, vrw types.ValueReadWriter, ns tree
 
 // isRootValue returns whether the value is a RootValue. This is a variable as it's changed in Doltgres.
 func isRootValue(nbf *types.NomsBinFormat, val types.Value) bool {
-	if nbf.UsesFlatbuffers() {
-		if sm, ok := val.(types.SerialMessage); ok {
-			fileID := serial.GetFileID(sm)
-			return fileID == serial.RootValueFileID || fileID == serial.DoltgresRootValueFileID
-		}
-	} else {
-		if st, ok := val.(types.Struct); ok {
-			return st.Name() == ddbRootStructName
-		}
+	types.AssertFormat_DOLT(nbf)
+	if sm, ok := val.(types.SerialMessage); ok {
+		fileID := serial.GetFileID(sm)
+		return fileID == serial.RootValueFileID || fileID == serial.DoltgresRootValueFileID
 	}
 	return false
 }

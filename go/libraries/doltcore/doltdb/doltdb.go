@@ -40,12 +40,7 @@ import (
 	"github.com/dolthub/dolt/go/store/prolly"
 	"github.com/dolthub/dolt/go/store/prolly/tree"
 	"github.com/dolthub/dolt/go/store/types"
-	"github.com/dolthub/dolt/go/store/types/edits"
 )
-
-func init() {
-	types.CreateEditAccForMapEdits = edits.NewAsyncSortedEditsWithDefaults
-}
 
 const (
 	// Working and Staged identifiers refer to the working and staged roots in special circumstances where

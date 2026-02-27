@@ -54,7 +54,6 @@ const (
 type FKViolationReceiver interface {
 	StartFK(ctx *sql.Context, fk doltdb.ForeignKey) error
 	EndCurrFK(ctx context.Context) error
-	NomsFKViolationFound(ctx context.Context, rowKey, rowValue types.Tuple) error
 	ProllyFKViolationFound(ctx context.Context, rowKey, rowValue val.Tuple) error
 }
 
@@ -214,10 +213,6 @@ type foreignKeyViolationWriter struct {
 	artEditor     *prolly.ArtifactsEditor
 	kd            *val.TupleDesc
 	cInfoJsonData []byte
-
-	// noms
-	violMapEditor *types.MapEditor
-	nomsVInfo     types.JSON
 }
 
 var _ FKViolationReceiver = (*foreignKeyViolationWriter)(nil)
@@ -286,18 +281,6 @@ func (f *foreignKeyViolationWriter) EndCurrFK(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (f *foreignKeyViolationWriter) NomsFKViolationFound(ctx context.Context, rowKey, rowValue types.Tuple) error {
-	cvKey, cvVal, err := toConstraintViolationRow(ctx, CvType_ForeignKey, f.nomsVInfo, rowKey, rowValue)
-	if err != nil {
-		return err
-	}
-
-	f.violMapEditor.Set(cvKey, cvVal)
-	f.violatedTables.Add(f.currFk.TableName)
-
 	return nil
 }
 

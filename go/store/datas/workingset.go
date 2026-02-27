@@ -106,60 +106,29 @@ type WorkingSetSpec struct {
 //
 // ```
 // where M is a struct type and R is a ref type.
-func newWorkingSet(ctx context.Context, db *database, workingSetSpec WorkingSetSpec) (hash.Hash, types.Ref, error) {
+func newWorkingSet(ctx context.Context, db *database, workingSetSpec WorkingSetSpec) (hash.Hash, error) {
+	types.AssertFormat_DOLT(db.Format())
+
 	meta := workingSetSpec.Meta
 	workingRef := workingSetSpec.WorkingRoot
 	stagedRef := workingSetSpec.StagedRoot
 	mergeState := workingSetSpec.MergeState
 	rebaseState := workingSetSpec.RebaseState
 
-	if db.Format().UsesFlatbuffers() {
-		stagedAddr := stagedRef.TargetHash()
-		data := workingset_flatbuffer(workingRef.TargetHash(), &stagedAddr, mergeState, rebaseState, meta)
+	stagedAddr := stagedRef.TargetHash()
+	data := workingset_flatbuffer(workingRef.TargetHash(), &stagedAddr, mergeState, rebaseState, meta)
 
-		r, err := db.WriteValue(ctx, types.SerialMessage(data))
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-
-		ref, err := types.ToRefOfValue(r, db.Format())
-		if err != nil {
-			return hash.Hash{}, types.Ref{}, err
-		}
-
-		return ref.TargetHash(), ref, nil
-	}
-
-	metaSt, err := meta.toNomsStruct(workingRef.Format())
+	r, err := db.WriteValue(ctx, types.SerialMessage(data))
 	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
+		return hash.Hash{}, err
 	}
 
-	fields := make(types.StructData)
-	fields[workingSetMetaField] = metaSt
-	fields[workingRootRefField] = workingRef
-	fields[stagedRootRefField] = stagedRef
-
-	if mergeState != nil {
-		fields[mergeStateField] = *mergeState.nomsMergeStateRef
-	}
-
-	st, err := types.NewStruct(workingRef.Format(), workingSetName, fields)
+	ref, err := types.ToRefOfValue(r, db.Format())
 	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
+		return hash.Hash{}, err
 	}
 
-	wsRef, err := db.WriteValue(ctx, st)
-	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
-	}
-
-	ref, err := types.ToRefOfValue(wsRef, db.Format())
-	if err != nil {
-		return hash.Hash{}, types.Ref{}, err
-	}
-
-	return ref.TargetHash(), ref, nil
+	return ref.TargetHash(), nil
 }
 
 // workingset_flatbuffer creates a flatbuffer message for working set metadata.
@@ -237,32 +206,18 @@ func NewMergeState(
 	unmergableTables []string,
 	isCherryPick bool,
 ) (*MergeState, error) {
-	if vrw.Format().UsesFlatbuffers() {
-		ms := &MergeState{
-			preMergeWorkingAddr: new(hash.Hash),
-			fromCommitAddr:      new(hash.Hash),
-			fromCommitSpec:      commitSpecStr,
-			unmergableTables:    unmergableTables,
-			isCherryPick:        isCherryPick,
-		}
-		*ms.preMergeWorkingAddr = preMergeWorking.TargetHash()
-		*ms.fromCommitAddr = commit.Addr()
-		return ms, nil
-	} else {
-		v, err := mergeStateTemplate.NewStruct(preMergeWorking.Format(), []types.Value{commit.NomsValue(), types.String(commitSpecStr), preMergeWorking})
-		if err != nil {
-			return nil, err
-		}
-		ref, err := vrw.WriteValue(ctx, v)
-		if err != nil {
-			return nil, err
-		}
-		return &MergeState{
-			isCherryPick:      isCherryPick,
-			nomsMergeStateRef: &ref,
-			nomsMergeState:    &v,
-		}, nil
+	types.AssertFormat_DOLT(vrw.Format())
+
+	ms := &MergeState{
+		preMergeWorkingAddr: new(hash.Hash),
+		fromCommitAddr:      new(hash.Hash),
+		fromCommitSpec:      commitSpecStr,
+		unmergableTables:    unmergableTables,
+		isCherryPick:        isCherryPick,
 	}
+	*ms.preMergeWorkingAddr = preMergeWorking.TargetHash()
+	*ms.fromCommitAddr = commit.Addr()
+	return ms, nil
 }
 
 func NewRebaseState(preRebaseWorkingRoot hash.Hash, commitAddr hash.Hash, branch string, commitBecomesEmptyHandling uint8, emptyCommitHandling uint8, lastAttemptedStep float32, rebasingStarted bool, skipVerification bool) *RebaseState {

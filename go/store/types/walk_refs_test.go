@@ -141,26 +141,10 @@ func TestWalkRefs(t *testing.T) {
 	t.Run("Map", func(t *testing.T) {
 		t.Parallel()
 		vrw := newTestValueStore()
-		r := rand.New(rand.NewSource(0))
 
 		t.Run("OfRefs", func(t *testing.T) {
 			m, err := NewMap(context.Background(), vrw, mustValue(vrw.WriteValue(context.Background(), Float(42))), mustValue(vrw.WriteValue(context.Background(), Float(0))))
 			require.NoError(t, err)
-			runTest(vrw.Format(), m, t)
-		})
-
-		t.Run("Chunked", func(t *testing.T) {
-			m, err := NewMap(context.Background(), vrw, newValueSlice(vrw.Format(), r)...)
-			require.NoError(t, err)
-			for m.isLeaf() {
-				e := m.Edit()
-				vs := newValueSlice(vrw.Format(), r)
-				for i := 0; i < len(vs); i += 2 {
-					e = e.Set(vs[i], vs[i+1])
-				}
-				m, err = e.Map(context.Background())
-				require.NoError(t, err)
-			}
 			runTest(vrw.Format(), m, t)
 		})
 	})
