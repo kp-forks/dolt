@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -52,9 +53,21 @@ const (
 
 	// 1GB.
 	defaultTargetFileSize = 1 << 30
+)
 
-	// Keep most recent 10000 materialized commits
-	commitCacheSize = 10000
+var (
+	// Keep the most recently materialized commits cached.
+	//
+	// This was bumped from 10,000 due to an operational issue
+	// on idearoom's hosted instance on 2026/02/27.
+	//
+	// The cache we use grows in size up to this maximum.
+	// Falling off the cache size can cause a performance cliff
+	// for applications which run lots of dolt_log queries.
+	//
+	// This can currently be override by the environment variable
+	// `DOLT_COMMIT_CACHE_SIZE`. See below.
+	commitCacheSize int = 1024 * 1024
 )
 
 var ErrMissingDoltDataDir = errors.New("missing dolt data directory")
@@ -68,6 +81,17 @@ var InMemDoltDB = "mem://"
 
 var ErrNoRootValAtHash = errors.New("there is no dolt root value at that hash")
 var ErrCannotDeleteLastBranch = errors.New("cannot delete the last branch")
+
+func init() {
+	overrideCommitCacheSizeStr := os.Getenv("DOLT_COMMIT_CACHE_SIZE")
+	if overrideCommitCacheSizeStr != "" {
+		overrideCommitCacheSize, err := strconv.Atoi(overrideCommitCacheSizeStr)
+		if err == nil && overrideCommitCacheSize > 0 {
+			commitCacheSize = overrideCommitCacheSize
+		}
+
+	}
+}
 
 // TableResolver allows the user of a DoltDB to configure how table names are resolved on roots.
 // This is useful because the user-backed system table dolt_nonlocal_tables allows table names to resolve to
@@ -1263,7 +1287,7 @@ type TagWithHash struct {
 // GetTagsWithHashes returns a list of objects containing Tags with their associated Commit's hashes
 func (ddb *DoltDB) GetTagsWithHashes(ctx context.Context) ([]TagWithHash, error) {
 	var refs []TagWithHash
-	err := ddb.VisitRefsOfType(ctx, tagsRefFilter, func(r ref.DoltRef, _ hash.Hash) error {
+	err := ddb.VisitRefsOfType(ctx, tagsRefFilter, func(r ref.DoltRef, h hash.Hash) error {
 		if tr, ok := r.(ref.TagRef); ok {
 			tag, err := ddb.ResolveTag(ctx, tr)
 			if err != nil {
@@ -1274,6 +1298,38 @@ func (ddb *DoltDB) GetTagsWithHashes(ctx context.Context) ([]TagWithHash, error)
 				return err
 			}
 			refs = append(refs, TagWithHash{tag, h})
+		}
+		return nil
+	})
+	return refs, err
+}
+
+func (ddb *DoltDB) GetTagRefsWithHashes(ctx context.Context) ([]RefWithHash, error) {
+	var refs []RefWithHash
+	resolveTagHash := func(id string) (hash.Hash, error) {
+		ds, err := ddb.db.GetDataset(ctx, id)
+		if err != nil {
+			return hash.Hash{}, errors.New("tag ref not found")
+		}
+		if !ds.HasHead() {
+			return hash.Hash{}, errors.New("tag ref not found")
+		}
+		if !ds.IsTag() {
+			return hash.Hash{}, errors.New("tagRef head is not a tag")
+		}
+		_, addr, err := ds.HeadTag()
+		if err != nil {
+			return hash.Hash{}, err
+		}
+		return addr, nil
+	}
+	err := ddb.VisitRefsOfType(ctx, tagsRefFilter, func(r ref.DoltRef, h hash.Hash) error {
+		if tr, ok := r.(ref.TagRef); ok {
+			addr, err := resolveTagHash(tr.String())
+			if err != nil {
+				return err
+			}
+			refs = append(refs, RefWithHash{tr, addr})
 		}
 		return nil
 	})
@@ -2396,20 +2452,35 @@ func (ddb *DoltDB) PurgeCaches() {
 }
 
 const (
-	DbRevisionDelimiter = "/"
+	DbRevisionDelimiter      = "/"
+	DbRevisionDelimiterAlias = "@"
 )
+
+// DBRevisionDelimiters contains revision delimiters for database names.
+var DBRevisionDelimiters = []string{DbRevisionDelimiter, DbRevisionDelimiterAlias}
 
 // RevisionDbName returns the name of the revision db for the base name and revision string given
 func RevisionDbName(baseName string, rev string) string {
 	return baseName + DbRevisionDelimiter + rev
 }
 
-func SplitRevisionDbName(dbName string) (string, string) {
-	var baseName, rev string
-	parts := strings.SplitN(dbName, DbRevisionDelimiter, 2)
-	baseName = parts[0]
-	if len(parts) > 1 {
-		rev = parts[1]
+// SplitRevisionDbName returns the base database name and revision from a revision-qualified name. Resolves on the
+// [DbRevisionDelimiter] and [DbRevisionDelimiterAlias]. Unqualified names are returned as the base name with an
+// empty revision. If both delimiters are present in the DB name, the one with the lowest index is used.
+func SplitRevisionDbName(dbName string) (base string, revision string) {
+	lowest := len(dbName)
+	base = dbName
+	for _, delimiter := range DBRevisionDelimiters {
+		if idx := strings.Index(dbName, delimiter); idx != -1 {
+			if idx < lowest {
+				lowest = idx
+				if b, r, ok := strings.Cut(dbName, delimiter); ok {
+					base = b
+					revision = r
+				}
+			}
+		}
 	}
-	return baseName, rev
+
+	return base, revision
 }
