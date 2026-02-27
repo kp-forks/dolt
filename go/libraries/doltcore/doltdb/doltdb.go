@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,9 +58,21 @@ const (
 
 	// 1GB.
 	defaultTargetFileSize = 1 << 30
+)
 
-	// Keep most recent 10000 materialized commits
-	commitCacheSize = 10000
+var (
+	// Keep the most recently materialized commits cached.
+	//
+	// This was bumped from 10,000 due to an operational issue
+	// on idearoom's hosted instance on 2026/02/27.
+	//
+	// The cache we use grows in size up to this maximum.
+	// Falling off the cache size can cause a performance cliff
+	// for applications which run lots of dolt_log queries.
+	//
+	// This can currently be override by the environment variable
+	// `DOLT_COMMIT_CACHE_SIZE`. See below.
+	commitCacheSize int = 1024 * 1024
 )
 
 var ErrMissingDoltDataDir = errors.New("missing dolt data directory")
@@ -73,6 +86,17 @@ var InMemDoltDB = "mem://"
 
 var ErrNoRootValAtHash = errors.New("there is no dolt root value at that hash")
 var ErrCannotDeleteLastBranch = errors.New("cannot delete the last branch")
+
+func init() {
+	overrideCommitCacheSizeStr := os.Getenv("DOLT_COMMIT_CACHE_SIZE")
+	if overrideCommitCacheSizeStr != "" {
+		overrideCommitCacheSize, err := strconv.Atoi(overrideCommitCacheSizeStr)
+		if err == nil && overrideCommitCacheSize > 0 {
+			commitCacheSize = overrideCommitCacheSize
+		}
+
+	}
+}
 
 // TableResolver allows the user of a DoltDB to configure how table names are resolved on roots.
 // This is useful because the user-backed system table dolt_nonlocal_tables allows table names to resolve to
