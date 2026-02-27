@@ -40,20 +40,11 @@ type formatTag struct {
 	furp byte
 }
 
-var formatTag_LD_1 = &formatTag{}
 var formatTag_DOLT = &formatTag{}
-
-var Format_LD_1 = &NomsBinFormat{formatTag_LD_1}
 var Format_DOLT = &NomsBinFormat{formatTag_DOLT}
 
 var nbfLock = &sync.Mutex{}
 var Format_Default *NomsBinFormat
-
-var emptyTuples = make(map[*NomsBinFormat]Tuple)
-
-func init() {
-	emptyTuples[Format_LD_1], _ = NewTuple(Format_LD_1)
-}
 
 func IsFormat_DOLT(nbf *NomsBinFormat) bool {
 	return nbf.tag == formatTag_DOLT
@@ -67,9 +58,7 @@ func AssertFormat_DOLT(nbf *NomsBinFormat) {
 }
 
 func GetFormatForVersionString(s string) (*NomsBinFormat, error) {
-	if s == constants.FormatLD1String {
-		return Format_LD_1, nil
-	} else if s == constants.FormatDoltString {
+	if s == constants.FormatDoltString {
 		return Format_DOLT, nil
 	} else {
 		return nil, errors.New("unsupported ChunkStore version " + s)
@@ -77,9 +66,7 @@ func GetFormatForVersionString(s string) (*NomsBinFormat, error) {
 }
 
 func (nbf *NomsBinFormat) VersionString() string {
-	if nbf.tag == formatTag_LD_1 {
-		return constants.FormatLD1String
-	} else if nbf.tag == formatTag_DOLT {
+	if nbf.tag == formatTag_DOLT {
 		return constants.FormatDoltString
 	} else {
 		panic("unrecognized NomsBinFormat tag value")
