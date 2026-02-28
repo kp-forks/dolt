@@ -282,21 +282,15 @@ func (ms *MergeState) FromCommit(ctx context.Context, vr types.ValueReader) (*Co
 	return CommitFromValue(vr.Format(), commitV)
 }
 
-func (ms *MergeState) FromCommitSpec(ctx context.Context, vr types.ValueReader) (string, error) {
-	types.AssertFormat_DOLT(vr.Format())
-
+func (ms *MergeState) FromCommitSpec() (string, error) {
 	return ms.fromCommitSpec, nil
 }
 
-func (ms *MergeState) IsCherryPick(_ context.Context, vr types.ValueReader) (bool, error) {
-	types.AssertFormat_DOLT(vr.Format())
-
+func (ms *MergeState) IsCherryPick() (bool, error) {
 	return ms.isCherryPick, nil
 }
 
-func (ms *MergeState) UnmergableTables(ctx context.Context, vr types.ValueReader) ([]string, error) {
-	types.AssertFormat_DOLT(vr.Format())
-
+func (ms *MergeState) UnmergableTables() ([]string, error) {
 	return ms.unmergableTables, nil
 }
 

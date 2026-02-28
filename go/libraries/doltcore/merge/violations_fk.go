@@ -131,12 +131,12 @@ func RegisterForeignKeyViolations(
 				return err
 			}
 
-			err = childFkConstraintViolations(ctx, baseRoot.VRW(), foreignKey, postParent, postChild, postChild, emptyIdx, receiver)
+			err = childFkConstraintViolations(ctx, foreignKey, postParent, postChild, postChild, emptyIdx, receiver)
 			if err != nil {
 				return err
 			}
 		} else {
-			err = childFkConstraintViolations(ctx, baseRoot.VRW(), foreignKey, postParent, postChild, preChild, preChild.RowData, receiver)
+			err = childFkConstraintViolations(ctx, foreignKey, postParent, postChild, preChild, preChild.RowData, receiver)
 			if err != nil {
 				return err
 			}
@@ -252,7 +252,6 @@ func (f *foreignKeyViolationWriter) StartFK(ctx *sql.Context, fk doltdb.ForeignK
 		return err
 	}
 
-	types.AssertFormat_DOLT(tbl.Format())
 	arts, err := tbl.GetArtifacts(ctx)
 	if err != nil {
 		return err
@@ -266,8 +265,6 @@ func (f *foreignKeyViolationWriter) StartFK(ctx *sql.Context, fk doltdb.ForeignK
 }
 
 func (f *foreignKeyViolationWriter) EndCurrFK(ctx context.Context) error {
-	types.AssertFormat_DOLT(f.currTbl.Format())
-
 	artMap, err := f.artEditor.Flush(ctx)
 	if err != nil {
 		return err
@@ -307,10 +304,6 @@ func parentFkConstraintViolations(
 	preParentRowData durable.Index,
 	receiver FKViolationReceiver,
 ) error {
-	if preParentRowData.Format() != types.Format_DOLT {
-		panic("unsupported format: " + preParentRowData.Format().VersionString())
-	}
-
 	if preParent.IndexData == nil || postParent.Schema.GetPKCols().Size() == 0 || preParent.Schema.GetPKCols().Size() == 0 {
 		m, err := durable.ProllyMapFromIndex(preParentRowData)
 		if err != nil {
@@ -342,16 +335,11 @@ func parentFkConstraintViolations(
 // necessary.
 func childFkConstraintViolations(
 	ctx context.Context,
-	vr types.ValueReader,
 	foreignKey doltdb.ForeignKey,
 	postParent, postChild, preChild *constraintViolationsLoadedTable,
 	preChildRowData durable.Index,
 	receiver FKViolationReceiver,
 ) error {
-	if preChildRowData.Format() != types.Format_DOLT {
-		panic("unsupported format: " + preChildRowData.Format().VersionString())
-	}
-
 	if preChild.IndexData == nil || postChild.Schema.GetPKCols().Size() == 0 || preChild.Schema.GetPKCols().Size() == 0 {
 		m, err := durable.ProllyMapFromIndex(preChildRowData)
 		if err != nil {

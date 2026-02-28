@@ -50,9 +50,7 @@ func (s *Statistics) Count() (int, error) {
 }
 
 // LoadStatistics attempts to dereference a database's statistics Dataset into a typed Statistics object.
-func LoadStatistics(ctx context.Context, nbf *types.NomsBinFormat, ns tree.NodeStore, vr types.ValueReader, ds Dataset) (*Statistics, error) {
-	types.AssertFormat_DOLT(nbf)
-
+func LoadStatistics(ctx context.Context, ns tree.NodeStore, vr types.ValueReader, ds Dataset) (*Statistics, error) {
 	rootHash, hasHead := ds.MaybeHeadAddr()
 	if !hasHead {
 		return &Statistics{m: prolly.Map{}, addr: hash.Hash{}}, nil

@@ -1372,10 +1372,6 @@ func (d *DoltSession) addDB(ctx *sql.Context, db SqlDatabase) error {
 
 	// TODO: figure out how to cast this to dsqle.SqlDatabase without creating import cycles
 	// Or better yet, get rid of EditOptions from the database, it's a session setting
-	nbf := types.Format_Default
-	if branchState.dbData.Ddb != nil {
-		nbf = branchState.dbData.Ddb.Format()
-	}
 	editOpts := db.(interface{ EditOptions() editor.Options }).EditOptions()
 
 	if dbState.Err != nil {
@@ -1405,7 +1401,7 @@ func (d *DoltSession) addDB(ctx *sql.Context, db SqlDatabase) error {
 			if err != nil {
 				return err
 			}
-			branchState.writeSession = d.writeSessProv(nbf, branchState.WorkingSet(), tracker, editOpts)
+			branchState.writeSession = d.writeSessProv(branchState.WorkingSet(), tracker, editOpts)
 		}
 	}
 
@@ -2069,4 +2065,4 @@ func DefaultHead(ctx *sql.Context, baseName string, db SqlDatabase) (string, err
 // WriteSessFunc is a constructor that session builders use to
 // create fresh table editors.
 // The indirection avoids a writer/dsess package import cycle.
-type WriteSessFunc func(nbf *types.NomsBinFormat, ws *doltdb.WorkingSet, aiTracker globalstate.AutoIncrementTracker, opts editor.Options) WriteSession
+type WriteSessFunc func(ws *doltdb.WorkingSet, aiTracker globalstate.AutoIncrementTracker, opts editor.Options) WriteSession

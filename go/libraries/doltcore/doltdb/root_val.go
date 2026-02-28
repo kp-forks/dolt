@@ -156,8 +156,6 @@ type tableEdit struct {
 
 // NewRootValue returns a new RootValue. This is a variable as it's changed in Doltgres.
 var NewRootValue = func(ctx context.Context, vrw types.ValueReadWriter, ns tree.NodeStore, v types.Value) (RootValue, error) {
-	types.AssertFormat_DOLT(vrw.Format())
-
 	srv, err := serial.TryGetRootAsRootValue([]byte(v.(types.SerialMessage)), serial.MessagePrefixSz)
 	if err != nil {
 		return nil, err
@@ -247,7 +245,6 @@ func decodeRootNomsValue(ctx context.Context, vrw types.ValueReadWriter, ns tree
 
 // isRootValue returns whether the value is a RootValue. This is a variable as it's changed in Doltgres.
 func isRootValue(nbf *types.NomsBinFormat, val types.Value) bool {
-	types.AssertFormat_DOLT(nbf)
 	if sm, ok := val.(types.SerialMessage); ok {
 		fileID := serial.GetFileID(sm)
 		return fileID == serial.RootValueFileID || fileID == serial.DoltgresRootValueFileID

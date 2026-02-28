@@ -93,7 +93,7 @@ func (tvs TupleValueSlice) Value(ctx context.Context) (Value, error) {
 }
 
 func EmptyTuple(nbf *NomsBinFormat) Tuple {
-	return emptyTuples[nbf]
+	return Tuple{}
 }
 
 func newTupleIterator() interface{} {

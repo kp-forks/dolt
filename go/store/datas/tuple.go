@@ -35,9 +35,7 @@ func (t Tuple) Bytes() []byte {
 }
 
 // LoadTuple attempts to dereference a database's Tuple Dataset into a typed Tuple object.
-func LoadTuple(ctx context.Context, nbf *types.NomsBinFormat, ns tree.NodeStore, vr types.ValueReader, ds Dataset) (*Tuple, error) {
-	types.AssertFormat_DOLT(nbf)
-
+func LoadTuple(ctx context.Context, ns tree.NodeStore, vr types.ValueReader, ds Dataset) (*Tuple, error) {
 	rootHash, hasHead := ds.MaybeHeadAddr()
 	if !hasHead {
 		return &Tuple{}, nil

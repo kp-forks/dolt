@@ -619,11 +619,7 @@ func TestConvertPrepared(t *testing.T) {
 }
 
 func TestScripts(t *testing.T) {
-	var skipped []string
-	if types.IsFormat_DOLT(types.Format_Default) {
-		skipped = append(skipped, newFormatSkippedScripts...)
-	}
-	h := newDoltHarness(t).WithSkippedQueries(skipped).WithConfigureStats(true)
+	h := newDoltHarness(t).WithConfigureStats(true)
 	defer h.Close()
 	enginetest.TestScripts(t, h)
 }
@@ -1850,12 +1846,8 @@ func TestDeleteQueriesPrepared(t *testing.T) {
 }
 
 func TestScriptsPrepared(t *testing.T) {
-	var skipped []string
-	if types.IsFormat_DOLT(types.Format_Default) {
-		skipped = append(skipped, newFormatSkippedScripts...)
-	}
 	skipPreparedTests(t)
-	h := newDoltHarness(t).WithSkippedQueries(skipped).WithConfigureStats(true)
+	h := newDoltHarness(t).WithConfigureStats(true)
 	defer h.Close()
 	enginetest.TestScriptsPrepared(t, h)
 }

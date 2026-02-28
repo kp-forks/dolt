@@ -147,8 +147,6 @@ func newCommitForValue(ctx context.Context, cs chunks.ChunkStore, vrw types.Valu
 		opts.Meta = &CommitMeta{}
 	}
 
-	types.AssertFormat_DOLT(vrw.Format())
-
 	r, err := vrw.WriteValue(ctx, v)
 	if err != nil {
 		return nil, err
@@ -181,8 +179,6 @@ func newCommitForValue(ctx context.Context, cs chunks.ChunkStore, vrw types.Valu
 }
 
 func commitPtr(nbf *types.NomsBinFormat, v types.Value, r *types.Ref) (*Commit, error) {
-	types.AssertFormat_DOLT(nbf)
-
 	bs := []byte(v.(types.SerialMessage))
 	var cm serial.Commit
 	err := serial.InitCommitRoot(&cm, bs, serial.MessagePrefixSz)
