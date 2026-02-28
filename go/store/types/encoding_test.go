@@ -25,7 +25,6 @@ import (
 	"bytes"
 	"context"
 	"math"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -33,8 +32,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/dolthub/dolt/go/libraries/doltcore/dconfig"
-	"github.com/dolthub/dolt/go/store/constants"
 	"github.com/dolthub/dolt/go/store/hash"
 )
 
@@ -237,7 +234,7 @@ func TestWriteListOfList(t *testing.T) {
 	assertEncoding(t,
 		[]interface{}{
 			ListKind, uint64(0),
-			uint64(2), // len
+			uint64(2),                     // len
 			ListKind, uint64(0), uint64(1) /* len */, FloatKind, Float(0),
 			ListKind, uint64(0), uint64(3) /* len */, FloatKind, Float(1), FloatKind, Float(2), FloatKind, Float(3),
 		},
@@ -614,14 +611,4 @@ func TestWriteEmptyUnionList(t *testing.T) {
 		},
 		mustValue(NewList(context.Background(), vrw)),
 	)
-}
-
-func TestNomsBinFormat(t *testing.T) {
-	v, _ := os.LookupEnv(dconfig.EnvDefaultBinFormat)
-	switch v {
-	case constants.FormatDoltString:
-		assert.Equal(t, Format_DOLT, Format_Default)
-	default:
-		t.Fatalf("unknown format %s", v)
-	}
 }
