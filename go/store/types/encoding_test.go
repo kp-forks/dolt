@@ -234,7 +234,7 @@ func TestWriteListOfList(t *testing.T) {
 	assertEncoding(t,
 		[]interface{}{
 			ListKind, uint64(0),
-			uint64(2),                     // len
+			uint64(2), // len
 			ListKind, uint64(0), uint64(1) /* len */, FloatKind, Float(0),
 			ListKind, uint64(0), uint64(3) /* len */, FloatKind, Float(1), FloatKind, Float(2), FloatKind, Float(3),
 		},
