@@ -17,6 +17,7 @@ package merge_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/dolthub/go-mysql-server/sql"
@@ -111,6 +112,9 @@ func TestSchemaMerge(t *testing.T) {
 	})
 	t.Run("large json merge tests", func(t *testing.T) {
 		testSchemaMerge(t, jsonMergeLargeDocumentTests(t))
+	})
+	t.Run("adaptive encoding tests", func(t *testing.T) {
+		testSchemaMerge(t, adaptiveEncodingTests)
 	})
 }
 
@@ -638,10 +642,10 @@ var collationTests = []schemaMergeTest{
 	},
 	{
 		name:     "no collation changes",
-		ancestor: *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a int, b int, c varchar(10) collate utf8mb4_0900_ai_ci unique, d decimal(5,3) unique)")),
-		left:     tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a int, b int, c varchar(10) collate utf8mb4_0900_ai_ci unique, d decimal(5,3) unique)")),
-		right:    tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a int, b int, c varchar(10) collate utf8mb4_0900_ai_ci unique, d decimal(5,3) unique)")),
-		merged:   *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a int, b int, c varchar(10) collate utf8mb4_0900_ai_ci unique, d decimal(5,3) unique)")),
+		ancestor: *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a int, b int, c varchar(10) collate utf8mb4_0900_ai_ci unique, d decimal(6,3) unique)")),
+		left:     tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a int, b int, c varchar(10) collate utf8mb4_0900_ai_ci unique, d decimal(6,3) unique)")),
+		right:    tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a int, b int, c varchar(10) collate utf8mb4_0900_ai_ci unique, d decimal(6,3) unique)")),
+		merged:   *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a int, b int, c varchar(10) collate utf8mb4_0900_ai_ci unique, d decimal(6,3) unique)")),
 		dataTests: []dataTest{
 			{
 				name:     "no data change",
@@ -1390,6 +1394,25 @@ var jsonMergeTests = []schemaMergeTest{
 				left:     singleRow(1, 2, 1, `{ "aa":2 }`),
 				right:    singleRow(1, 1, 2, `{ "a": 1, "aa": 3 }`),
 				merged:   singleRow(1, 2, 2, `{ "aa": 3 }`),
+			},
+		},
+	},
+}
+
+var adaptiveEncodingTests = []schemaMergeTest{
+	{
+		name:     "cell-wise merge would create row with different inlining",
+		ancestor: *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a text, b text)")),
+		left:     tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a text, b text)")),
+		right:    tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a text, b text)")),
+		merged:   *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a text, b text)")),
+		dataTests: []dataTest{
+			{
+				name:     "",
+				ancestor: singleRow(1, "", ""),
+				left:     singleRow(1, strings.Repeat("a", 2000), ""),
+				right:    singleRow(1, "", strings.Repeat("a", 2000)),
+				merged:   singleRow(1, strings.Repeat("a", 2000), strings.Repeat("a", 2000)),
 			},
 		},
 	},
