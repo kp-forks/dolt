@@ -171,12 +171,18 @@ func ContinueRevert(ctx *sql.Context, dbName string, authorName, authorEmail str
 		return "", 0, 0, 0, fmt.Errorf("fatal: unable to load roots for %s", dbName)
 	}
 
-	commitProps, err := dsess.NewCommitStagedProps(ctx, revertMessage)
+	commitProps, committerSet, err := dsess.NewCommitStagedProps(ctx, revertMessage)
 	if err != nil {
 		return "", 0, 0, 0, fmt.Errorf("error: failed to resolve commit identity: %w", err)
 	}
-	if authorName != "" {
+	if authorName != "" && authorEmail != "" {
 		commitProps.Author.Name = authorName
+		commitProps.Author.Name = authorEmail
+		// Older versions of Dolt used author as a synonym for committer. Unless specified, we keep that expectation.
+		if !committerSet {
+			commitProps.Committer.Name = authorName
+			commitProps.Committer.Name = authorEmail
+		}
 	}
 	if authorEmail != "" {
 		commitProps.Author.Email = authorEmail
@@ -433,15 +439,18 @@ func createRevertCommit(ctx *sql.Context, dbName string, doltSession *dsess.Dolt
 		return "", fmt.Errorf("fatal: unable to load roots for %s", dbName)
 	}
 
-	commitProps, err := dsess.NewCommitStagedProps(ctx, message)
+	commitProps, committerSet, err := dsess.NewCommitStagedProps(ctx, message)
 	if err != nil {
 		return "", fmt.Errorf("error: failed to resolve commit identity: %w", err)
 	}
-	if authorName != "" {
+	if authorName != "" || authorEmail != "" {
 		commitProps.Author.Name = authorName
-	}
-	if authorEmail != "" {
 		commitProps.Author.Email = authorEmail
+		// Older ver. of Dolt used author as a synonym for committer. Unless specified, we keep this expectation.
+		if !committerSet {
+			commitProps.Committer.Name = authorName
+			commitProps.Committer.Email = authorEmail
+		}
 	}
 
 	pendingCommit, err := doltSession.NewPendingCommit(ctx, dbName, roots, commitProps)

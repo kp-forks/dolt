@@ -503,7 +503,7 @@ func (d *DoltSession) CommitTransaction(ctx *sql.Context, tx sql.Transaction) (e
 
 		dbName := ctx.GetCurrentDatabase()
 		var pendingCommit *doltdb.PendingCommit
-		commitStagedProps, err := NewCommitStagedProps(ctx, message)
+		commitStagedProps, _, err := NewCommitStagedProps(ctx, message)
 		if err != nil {
 			return err
 		}
@@ -519,9 +519,9 @@ func (d *DoltSession) CommitTransaction(ctx *sql.Context, tx sql.Transaction) (e
 
 		_, err = d.DoltCommit(ctx, dbName, tx, pendingCommit)
 		return err
-	} else {
-		return d.commitWorkingSet(ctx, dirtyBranchState, tx)
 	}
+
+	return d.commitWorkingSet(ctx, dirtyBranchState, tx)
 }
 
 func (d *DoltSession) validateDoltCommit(ctx *sql.Context, dirtyBranchState *branchState) error {

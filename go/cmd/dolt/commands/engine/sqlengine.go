@@ -605,7 +605,7 @@ type envSessionVar struct {
 }
 
 // commitIdentEnvOverrides lists the DOLT_AUTHOR_* and DOLT_COMMITTER_* environment variables
-// that [InitCommitIdentSessionConfig] maps to their corresponding session variables.
+// that [InitClientCommitIdentSession] maps to their corresponding session variables.
 var commitIdentEnvOverrides = []envSessionVar{
 	{dconfig.EnvDoltAuthorName, dsess.DoltAuthorName},
 	{dconfig.EnvDoltAuthorEmail, dsess.DoltAuthorEmail},
@@ -615,13 +615,13 @@ var commitIdentEnvOverrides = []envSessionVar{
 	{dconfig.EnvDoltCommitterDate, dsess.DoltCommitterDate},
 }
 
-// InitCommitIdentSessionConfig seeds the DOLT_ author and committer session variables on the
-// current session so later DOLT_COMMIT calls attribute the commit correctly. |name| and |email|
-// supply the default identity for both author and committer; any non-empty DOLT_AUTHOR_* or
-// DOLT_COMMITTER_* environment variable overrides the matching field. Must run after
-// [sql.SessionCommandBegin] so the session is ready to accept SET statements. Silently skips
-// variables not recognised by |queryist|, so older servers remain usable.
-func InitCommitIdentSessionConfig(queryist cli.Queryist, sqlCtx *sql.Context, name, email string) error {
+// InitClientCommitIdentSession seeds the DOLT_ author and committer session variables on the
+// dolt CLI client's session so later DOLT_COMMIT calls attribute the commit correctly. |name|
+// and |email| supply the default identity for both author and committer; any non-empty
+// DOLT_AUTHOR_* or DOLT_COMMITTER_* environment variable overrides the matching field. Must run
+// after [sql.SessionCommandBegin] so the session is ready to accept SET statements. Silently
+// skips variables not recognised by |queryist|, so older servers remain usable.
+func InitClientCommitIdentSession(queryist cli.Queryist, sqlCtx *sql.Context, name, email string) error {
 	sessionVars := map[string]string{
 		dsess.DoltAuthorName:     name,
 		dsess.DoltAuthorEmail:    email,

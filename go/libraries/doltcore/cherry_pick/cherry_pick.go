@@ -190,7 +190,7 @@ func CreateCommitStagedPropsFromCherryPickOptions(ctx *sql.Context, options Cher
 		return nil, err
 	}
 
-	commitProps, err := dsess.NewCommitStagedProps(ctx, "")
+	commitProps, _, err := dsess.NewCommitStagedProps(ctx, "")
 	if err != nil {
 		return nil, err
 	}

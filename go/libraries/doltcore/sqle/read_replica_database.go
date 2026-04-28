@@ -485,7 +485,11 @@ func (rrd ReadReplicaDatabase) updateWorkingSet(ctx *sql.Context, localRef doltd
 
 	wsMeta := doltdb.TodoWorkingSetMeta()
 	if dtx, ok := ctx.GetTransaction().(*dsess.DoltTransaction); ok {
-		wsMeta = dtx.WorkingSetMeta(ctx)
+		name, email, _, _, err := dsess.ResolveNameEmail(ctx, dsess.DoltCommitterName, dsess.DoltCommitterEmail)
+		if err != nil {
+			return err
+		}
+		wsMeta = dtx.WorkingSetMeta(name, email)
 	}
 
 	newWs := doltdb.EmptyWorkingSet(wsRef).WithWorkingRoot(rv).WithStagedRoot(rv)

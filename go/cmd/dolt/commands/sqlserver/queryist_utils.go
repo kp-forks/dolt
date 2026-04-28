@@ -63,26 +63,6 @@ const (
 	QueryistTLSMode_NoVerify_FallbackToPlaintext
 )
 
-// nameEmailFromCurrentUser queries CURRENT_USER() and returns the username as the name and
-// the full user@host grant string as the email.
-func nameEmailFromCurrentUser(queryist cli.Queryist, sqlCtx *sql.Context) (name, email string) {
-	_, rowIter, _, err := queryist.Query(sqlCtx, "SELECT CURRENT_USER()")
-	if err != nil {
-		return "", ""
-	}
-	defer rowIter.Close(sqlCtx)
-	row, err := rowIter.Next(sqlCtx)
-	if err != nil || len(row) == 0 || row[0] == nil {
-		return "", ""
-	}
-	currentUser, ok := row[0].(string)
-	if !ok {
-		return "", ""
-	}
-	name, _, _ = strings.Cut(currentUser, "@")
-	return name, currentUser
-}
-
 // BuildConnectionStringQueryist returns a [cli.LateBindQueryist] that opens a connection to the
 // server at |host|:|port| using |creds| and |tlsMode|, and selects |dbRev| as the default
 // database. |configName| and |configEmail| are used as the commit identity when the client
@@ -127,13 +107,11 @@ func BuildConnectionStringQueryist(_ context.Context, cwdFS filesys.Filesys, cre
 		sqlCtx := sql.NewContext(ctx)
 		sqlCtx.SetCurrentDatabase(dbRev)
 
-		name, email := configName, configEmail
 		ip := net.ParseIP(host)
-		if !(host == "localhost" || (ip != nil && ip.IsLoopback())) {
-			name, email = nameEmailFromCurrentUser(queryist, sqlCtx)
-		}
-		if err := engine.InitCommitIdentSessionConfig(queryist, sqlCtx, name, email); err != nil {
-			cli.PrintErr(err.Error())
+		if host == "localhost" || (ip != nil && ip.IsLoopback()) {
+			if err := engine.InitClientCommitIdentSession(queryist, sqlCtx, configName, configEmail); err != nil {
+				cli.PrintErr(err.Error())
+			}
 		}
 
 		res.Queryist = queryist

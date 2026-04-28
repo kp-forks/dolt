@@ -53,6 +53,7 @@ SKIP_SERVER_TESTS=$(cat <<-EOM
 ~import-create-tables.bats~
 ~status.bats~
 ~import-replace-tables.bats~
+~show.bats~
 ~system-tables.bats~
 ~deleted-branches.bats~
 ~schema-export.bats~

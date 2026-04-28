@@ -191,26 +191,20 @@ SQL
 }
 
 @test "commit: dolt commit works correctly with multiple branches" {
-    # dolt checkout is not supported in remote-engine mode.
-    skip_if_remote
+    dolt branch branch1
     dolt branch branch2
-    dolt checkout -b branch1
-    dolt sql -q "CREATE table t1 (pk int primary key);"
-    dolt add t1
 
-    run dolt commit -m "adding table t1 on branch1"
+    dolt --branch branch1 sql -q "CREATE table t1 (pk int primary key);"
+    run dolt --branch branch1 commit -Am "adding table t1 on branch1"
     [ $status -eq 0 ]
     [[ "$output" =~ "adding table t1 on branch1" ]] || false
 
-    dolt checkout branch2
-    dolt sql -q "CREATE table t2 (pk int primary key);"
-    dolt add t2
-
-    run dolt commit -m "adding table t2 on branch2"
+    dolt --branch branch2 sql -q "CREATE table t2 (pk int primary key);"
+    run dolt --branch branch2 commit -Am "adding table t2 on branch2"
     [ $status -eq 0 ]
     [[ "$output" =~ "adding table t2 on branch2" ]] || false
 
-    run dolt log
+    run dolt --branch branch2 log
     [ $status -eq 0 ]
     [[ "$output" =~ "adding table t2 on branch2" ]] || false
     [[ ! "$output" =~ "adding table t1 on branch1" ]] || false
@@ -249,8 +243,6 @@ SQL
 }
 
 @test "commit: set committer time with env var" {
-    # The final branch hash comparison uses dolt checkout, which is not supported in remote-engine mode.
-    skip_if_remote
     dolt sql -q "CREATE table t (pk int primary key);"
     dolt add t
 
@@ -272,15 +264,11 @@ SQL
     dolt branch b1
     dolt branch b2
 
-    dolt checkout b1
-    TZ=PST+8 DOLT_COMMITTER_DATE='2023-09-26T12:34:56' DOLT_AUTHOR_DATE='2023-09-26T01:23:45' dolt commit --allow-empty -m "empty commit"
-    get_head_commit
-    head1=`get_head_commit`
+    TZ=PST+8 DOLT_COMMITTER_DATE='2023-09-26T12:34:56' DOLT_AUTHOR_DATE='2023-09-26T01:23:45' dolt --branch b1 commit --allow-empty -m "empty commit"
+    head1=`get_head_commit b1`
 
-    dolt checkout b2
-    TZ=PST+8 DOLT_COMMITTER_DATE='2023-09-26T12:34:56' DOLT_AUTHOR_DATE='2023-09-26T01:23:45' dolt commit --allow-empty -m "empty commit"
-    get_head_commit
-    head2=`get_head_commit`
+    TZ=PST+8 DOLT_COMMITTER_DATE='2023-09-26T12:34:56' DOLT_AUTHOR_DATE='2023-09-26T01:23:45' dolt --branch b2 commit --allow-empty -m "empty commit"
+    head2=`get_head_commit b2`
 
     [ "$head1" == "$head2" ]
 }

@@ -127,7 +127,7 @@ func doDoltCommit(ctx *sql.Context, args []string) (string, bool, error) {
 		}
 	}
 
-	commitStagedProps, err := dsess.NewCommitStagedProps(ctx, msg)
+	commitStagedProps, committerSet, err := dsess.NewCommitStagedProps(ctx, msg)
 	if err != nil {
 		return "", false, err
 	}
@@ -142,6 +142,11 @@ func doDoltCommit(ctx *sql.Context, args []string) (string, bool, error) {
 		if err != nil {
 			return "", false, err
 		}
+		// Older ver. of Dolt treated author as a synonym for committer. Unless specified, do the same.
+		if !committerSet {
+			commitStagedProps.Committer.Name = commitStagedProps.Author.Name
+			commitStagedProps.Committer.Email = commitStagedProps.Author.Email
+		}
 	}
 
 	if commitTimeStr, ok := apr.GetValue(cli.DateParam); ok {
@@ -150,6 +155,7 @@ func doDoltCommit(ctx *sql.Context, args []string) (string, bool, error) {
 			return "", false, err
 		}
 		commitStagedProps.Author.Date = datas.CommitDateAt(t)
+		commitStagedProps.Committer.Date = commitStagedProps.Committer.Date.Or(t)
 	}
 
 	if apr.Contains(cli.ForceFlag) {

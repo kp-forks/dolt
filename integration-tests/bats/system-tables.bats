@@ -1288,7 +1288,7 @@ assert_committer_only() {
   [[ "$output" =~ ,email, ]] || false
 }
 
-assert_dolt_log() {
+assert_committer_and_author() {
   local output="$1"
   [[ "$output" =~ ,author, ]] || false
   [[ "$output" =~ ,author_email, ]] || false
@@ -1312,12 +1312,12 @@ assert_dolt_log() {
 
   run dolt sql -r csv -q "SET @@dolt_log_committer_only = 0; SELECT * FROM dolt_log WHERE message = 'Commit with different author and committer'"
   [ "$status" -eq 0 ]
-  assert_dolt_log "$output"
+  assert_committer_and_author "$output"
 
   run dolt sql -r csv -q "SET @@dolt_log_committer_only = 1; SELECT * FROM dolt_log() WHERE message = 'Commit with different author and committer'"
   assert_committer_only "$output"
 
   run dolt sql -r csv -q "SET @@dolt_log_committer_only = 0; SELECT * FROM dolt_log() WHERE message = 'Commit with different author and committer'"
   [ $status -eq 0 ]
-  assert_dolt_log "$output"
+  assert_committer_and_author "$output"
 }

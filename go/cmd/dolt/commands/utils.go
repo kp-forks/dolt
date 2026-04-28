@@ -324,7 +324,7 @@ func newLateBindingEngine(
 		// database set when you begin using them.
 		sqlCtx.SetCurrentDatabase(database)
 
-		// SetClient must come before InitCommitIdentSessionConfig since it requires an authenticated client on the context.
+		// SetClient must come before InitClientCommitIdentSession since it requires an authenticated client on the context.
 		sqlCtx.Session.SetClient(sql.Client{User: dbUser, Address: config.ServerHost, Capabilities: 0})
 
 		// For now, we treat the entire lifecycle of this
@@ -335,7 +335,7 @@ func newLateBindingEngine(
 		// the DOLT_AUTHOR_* and DOLT_COMMITTER_* environment variables override individual fields. The
 		// resulting values are stored in the session variables read by [dsess.NewCommitStagedProps].
 		dSess := dsess.DSessFromSess(sqlCtx.Session)
-		if err := engine.InitCommitIdentSessionConfig(se, sqlCtx, dSess.Username(), dSess.Email()); err != nil {
+		if err := engine.InitClientCommitIdentSession(se, sqlCtx, dSess.Username(), dSess.Email()); err != nil {
 			cli.PrintErr(err.Error())
 		}
 

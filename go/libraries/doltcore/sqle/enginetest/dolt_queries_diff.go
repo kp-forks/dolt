@@ -4471,7 +4471,7 @@ var UnscopedDiffSystemTableScriptTests = []queries.ScriptTest{
 		},
 	},
 	{
-		Name: "dolt_diff author columns reflect author identity when author and committer differ",
+		Name: "dolt_diff committer columns when unset reflect --author",
 		SetUpScript: []string{
 			"CREATE TABLE t (pk INT PRIMARY KEY);",
 			"CALL DOLT_ADD('.');",
@@ -4482,7 +4482,7 @@ var UnscopedDiffSystemTableScriptTests = []queries.ScriptTest{
 		Assertions: []queries.ScriptTestAssertion{
 			{
 				Query:    "SELECT committer, email, author, author_email FROM dolt_diff WHERE message = 'insert row' LIMIT 1;",
-				Expected: []sql.Row{{"root", "root@localhost", "Test Author", "author@example.com"}},
+				Expected: []sql.Row{{"Test Author", "author@example.com", "Test Author", "author@example.com"}},
 			},
 		},
 	},
@@ -5244,7 +5244,7 @@ var ColumnDiffSystemTableScriptTests = []queries.ScriptTest{
 		},
 	},
 	{
-		Name: "dolt_column_diff author columns reflect author identity when author and committer differ",
+		Name: "dolt_column_diff committer columns when unset reflect --author",
 		SetUpScript: []string{
 			"CREATE TABLE t (pk INT PRIMARY KEY, c VARCHAR(10));",
 			"CALL DOLT_ADD('.');",
@@ -5253,7 +5253,7 @@ var ColumnDiffSystemTableScriptTests = []queries.ScriptTest{
 		Assertions: []queries.ScriptTestAssertion{
 			{
 				Query:    "SELECT committer, email, author, author_email FROM dolt_column_diff WHERE message = 'create table' LIMIT 1;",
-				Expected: []sql.Row{{"root", "root@localhost", "Test Author", "author@example.com"}},
+				Expected: []sql.Row{{"Test Author", "author@example.com", "Test Author", "author@example.com"}},
 			},
 		},
 	},

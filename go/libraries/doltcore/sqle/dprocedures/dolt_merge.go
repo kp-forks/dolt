@@ -459,7 +459,7 @@ func executeNoFFMerge(
 		return ws.WithStagedRoot(roots.Staged), nil, nil
 	}
 
-	commitStagedProps, err := dsess.NewCommitStagedProps(ctx, msg)
+	commitStagedProps, committerSet, err := dsess.NewCommitStagedProps(ctx, msg)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -469,9 +469,15 @@ func executeNoFFMerge(
 	if spec.Name != "" {
 		commitStagedProps.Author.Name = spec.Name
 		commitStagedProps.Author.Email = spec.Email
+		// Old ver. of Dolt treated author as a synonym for committer. Unless specified, eval as so.
+		if !committerSet {
+			commitStagedProps.Committer.Name = spec.Name
+			commitStagedProps.Committer.Email = spec.Email
+		}
 	}
 	if spec.Date != nil {
 		commitStagedProps.Author.Date = *spec.Date
+		commitStagedProps.Committer.Date = commitStagedProps.Committer.Date.Or(spec.Date.Time())
 	}
 	commitStagedProps.Force = spec.Force
 	commitStagedProps.SkipVerification = skipVerification
