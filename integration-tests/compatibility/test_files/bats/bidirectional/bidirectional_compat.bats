@@ -635,6 +635,10 @@ SQL
     [ -n "$DOLT_OLD_BIN" ] || skip "requires DOLT_OLD_BIN"
     [ -n "$DOLT_NEW_BIN" ] || skip "requires DOLT_NEW_BIN"
 
+    if [ -n "$DOLT_USE_ADAPTIVE_ENCODING" ]; then
+        skip "bug in adaptive encoding between 1.85.0 and 1.86.4"
+    fi
+    
     # Setup: old dolt creates table with all TEXT variants.
     # Row 1: all inline (small values).
     # Row 2: c_text inline (60000 < 65536), c_medtext out-of-band (70000 > 65536),
@@ -746,6 +750,10 @@ SQL
     [ -n "$DOLT_OLD_BIN" ] || skip "requires DOLT_OLD_BIN"
     [ -n "$DOLT_NEW_BIN" ] || skip "requires DOLT_NEW_BIN"
 
+    if [ -n "$DOLT_USE_ADAPTIVE_ENCODING" ]; then
+        skip "bug in adaptive encoding between 1.85.0 and 1.86.4"
+    fi
+    
     # Setup: old dolt creates table with all BLOB variants and VARBINARY.
     # Row 1: all inline (small values).
     # Row 2: c_blob inline (60000 < 65536), c_medblob out-of-band (70000 > 65536),
