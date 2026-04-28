@@ -1898,8 +1898,16 @@ func makeRootWithTable(t *testing.T, ddb *doltdb.DoltDB, eo editor.Options, tbl 
 	wr, err := sess.GetTableWriter(sql.NewContext(ctx), doltdb.TableName{Name: tbl.ns.name}, "test", noop, false)
 	require.NoError(t, err)
 
+	columns := tbl.ns.sch.GetAllCols().GetColumns()
 	sctx := sql.NewEmptyContext()
 	for _, r := range tbl.rows {
+		for i, column := range columns {
+			// Some SQL types (mostly Decimal) have a canonical representation for their values.
+			// We convert the test values here to ensure that we match that representation.
+			r[i], _, err = column.TypeInfo.ToSqlType().Convert(ctx, r[i])
+			require.NoError(t, err)
+		}
+
 		err = wr.Insert(sctx, r)
 		assert.NoError(t, err)
 	}
