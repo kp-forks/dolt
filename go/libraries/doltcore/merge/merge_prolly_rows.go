@@ -1948,7 +1948,10 @@ func (m *valueMerger) TryMerge(ctx *sql.Context, left, right, base val.Tuple) (v
 	// We call BuildPermissive so that we don't panic if the merged tuple violates a nullness constraint.
 	// This lets us log it as a violation instead.
 	mergedTuple, err := m.valueBuilder.BuildPermissive(m.syncPool)
-	return mergedTuple, true, err
+	if err != nil {
+		return nil, true, err
+	}
+	return mergedTuple, true, nil
 }
 
 // processBaseColumn returns whether column |i| of the base schema,
@@ -2071,16 +2074,6 @@ func (m *valueMerger) processColumn(ctx *sql.Context, i int, left, right, base v
 
 	sqlType := m.resultSchema.GetNonPKCols().GetByIndex(i).TypeInfo.ToSqlType()
 
-	returnleftValue := func() (result interface{}, conflict bool, err error) {
-		leftVal, err := convert(ctx, m.leftVD, sqlType, leftColIdx, left, m.ns)
-		return leftVal, false, err
-	}
-
-	returnRightValue := func() (result interface{}, conflict bool, err error) {
-		rightVal, err := convert(ctx, m.rightVD, sqlType, rightColIdx, right, m.ns)
-		return rightVal, false, err
-	}
-
 	// We previously asserted that left and right are not nil.
 	// But base can be nil in the event of convergent inserts.
 	if base == nil || !baseColExists {
@@ -2090,7 +2083,8 @@ func (m *valueMerger) processColumn(ctx *sql.Context, i int, left, right, base v
 		// Regardless, both left and right are inserts, or one is an insert and the other doesn't exist.
 
 		if !rightColExists {
-			return returnleftValue()
+			leftVal, err := convert(ctx, m.leftVD, sqlType, leftColIdx, left, m.ns)
+			return leftVal, false, err
 		}
 
 		rightVal, err := convert(ctx, m.rightVD, sqlType, rightColIdx, right, m.ns)
@@ -2099,7 +2093,7 @@ func (m *valueMerger) processColumn(ctx *sql.Context, i int, left, right, base v
 		}
 
 		if !leftColExists {
-			return returnRightValue()
+			return rightVal, false, nil
 		}
 
 		leftVal, err := convert(ctx, m.leftVD, sqlType, leftColIdx, left, m.ns)
@@ -2112,21 +2106,20 @@ func (m *valueMerger) processColumn(ctx *sql.Context, i int, left, right, base v
 			return nil, false, err
 		}
 
-		// TODO: This used to use m.leftVD[i]. Was there a bug there we weren't catching?
 		if cmp == 0 {
 			// Columns are equal, returning either would be correct.
 			// However, for certain types the two columns may have different bytes.
 			// We need to ensure that merges are deterministic regardless of the merge direction.
 			// To achieve this, we sort the two values and return the higher one.
 			if bytes.Compare(leftCol, rightCol) > 0 {
-				return returnleftValue()
+				return leftVal, false, err
 			}
-			return returnRightValue()
+			return rightVal, false, err
 		}
 
 		// generated columns will be updated as part of the merge later on, so choose either value for now
 		if generatedColumn {
-			return returnleftValue()
+			return leftVal, false, err
 		}
 
 		// conflicting inserts
