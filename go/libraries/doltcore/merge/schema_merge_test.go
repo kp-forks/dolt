@@ -552,6 +552,21 @@ var columnAddDropTests = []schemaMergeTest{
 		right:    tbl(sch("CREATE TABLE t (id int PRIMARY KEY, c int, b text)")),
 		merged:   *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, c int, b text)")),
 	},
+	{
+		name:     "regression test to ensure merging uses the comparator in the result schema when comparing cells",
+		ancestor: *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a char(1) COLLATE utf8mb4_0900_ai_ci, b char(1) COLLATE utf8mb4_0900_bin)")),
+		left:     tbl(sch("CREATE TABLE t (id int PRIMARY KEY, a char(1) COLLATE utf8mb4_0900_ai_ci, b char(1) COLLATE utf8mb4_0900_bin)")),
+		right:    tbl(sch("CREATE TABLE t (id int PRIMARY KEY, b char(1) COLLATE utf8mb4_0900_bin)")),
+		merged:   *tbl(sch("CREATE TABLE t (id int PRIMARY KEY, b char(1) COLLATE utf8mb4_0900_bin)")),
+		dataTests: []dataTest{
+			{
+				ancestor:     nil,
+				left:         singleRow(1, "", "a"),
+				right:        singleRow(1, "A"),
+				dataConflict: true,
+			},
+		},
+	},
 }
 
 type constraintViolation struct {
