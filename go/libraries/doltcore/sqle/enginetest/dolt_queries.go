@@ -2935,6 +2935,46 @@ var BranchesSystemTableTests = []queries.ScriptTest{
 			},
 		},
 	},
+	{
+		Name: "dolt_branches default commit populates committer and author from session identity",
+		SetUpScript: []string{
+			"CALL DOLT_CHECKOUT('-b', 'feature');",
+			"CREATE TABLE t (pk INT PRIMARY KEY);",
+			"CALL DOLT_COMMIT('-Am', 'session commit');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query:    "SELECT latest_committer, latest_committer_email, latest_author, latest_author_email FROM dolt_branches WHERE name = 'feature';",
+				Expected: []sql.Row{{"root", "root@localhost", "root", "root@localhost"}},
+			},
+		},
+	},
+	{
+		Name: "dolt_branches schema exposes split committer and author columns",
+		SetUpScript: []string{
+			"CREATE TABLE t (pk INT PRIMARY KEY);",
+			"CALL DOLT_COMMIT('-Am', 'init');",
+		},
+		Assertions: []queries.ScriptTestAssertion{
+			{
+				Query: "DESCRIBE dolt_branches;",
+				Expected: []sql.Row{
+					{"name", "text", "NO", "PRI", nil, ""},
+					{"hash", "text", "NO", "", nil, ""},
+					{"latest_committer", "text", "YES", "", nil, ""},
+					{"latest_committer_email", "text", "YES", "", nil, ""},
+					{"latest_commit_date", "datetime(3)", "YES", "", nil, ""},
+					{"latest_commit_message", "text", "YES", "", nil, ""},
+					{"remote", "text", "YES", "", nil, ""},
+					{"branch", "text", "YES", "", nil, ""},
+					{"dirty", "tinyint(1)", "YES", "", nil, ""},
+					{"latest_author", "text", "YES", "", nil, ""},
+					{"latest_author_email", "text", "YES", "", nil, ""},
+					{"latest_author_date", "datetime(3)", "YES", "", nil, ""},
+				},
+			},
+		},
+	},
 }
 
 var DoltCheckoutScripts = []queries.ScriptTest{
