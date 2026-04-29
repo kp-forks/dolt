@@ -119,7 +119,7 @@ func IterAddressFields(td *TupleDesc, cb func(int, Type)) {
 func IterAdaptiveFields(td *TupleDesc, cb func(int, Type)) {
 	for i, typ := range td.Types {
 		switch typ.Enc {
-		case BytesAdaptiveEnc, StringAdaptiveEnc, ExtendedAdaptiveEnc, GeomAdaptiveEnc:
+		case BytesAdaptiveEnc, StringAdaptiveEnc, ExtendedAdaptiveEnc, GeomAdaptiveEnc, JsonAdaptiveEnc:
 			cb(i, typ)
 		}
 	}
@@ -149,8 +149,13 @@ func makeFixedAccess(types []Type) (acc FixedAccess) {
 	return
 }
 
+// AddressFieldCount returns the number of fields in the TupleDesc that are either address-encoded or adaptive-encoded,
+// and thus require address lookups to access. For adaptive encoded fields, this count is a maximum.
 func (td *TupleDesc) AddressFieldCount() (n int) {
 	IterAddressFields(td, func(int, Type) {
+		n++
+	})
+	IterAdaptiveFields(td, func(int, Type) {
 		n++
 	})
 	return
