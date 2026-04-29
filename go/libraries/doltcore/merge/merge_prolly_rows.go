@@ -1945,7 +1945,9 @@ func (m *valueMerger) TryMerge(ctx *sql.Context, left, right, base val.Tuple) (v
 		}
 	}
 
-	mergedTuple, err := m.valueBuilder.Build(m.syncPool)
+	// We call BuildPermissive so that we don't panic if the merged tuple violates a nullness constraint.
+	// This lets us log it is a violation instead.
+	mergedTuple, err := m.valueBuilder.BuildPermissive(m.syncPool)
 	return mergedTuple, true, err
 }
 
