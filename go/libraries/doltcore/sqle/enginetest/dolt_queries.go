@@ -2684,7 +2684,8 @@ WHERE z IN (
 		},
 	},
 	{
-		Name: "dolt_history_dolt_schemas committer column when unset reflects --author",
+		Name:    "dolt_history_dolt_schemas committer column when unset reflects --author",
+		Dialect: "mysql",
 		SetUpScript: []string{
 			"CREATE VIEW v1 AS SELECT 1",
 			"CALL DOLT_COMMIT('-Am', 'create view', '--author', 'Test Author <test@example.com>')",
@@ -2697,7 +2698,8 @@ WHERE z IN (
 		},
 	},
 	{
-		Name: "dolt_history_dolt_procedures committer column when unset reflects --author",
+		Name:    "dolt_history_dolt_procedures committer column when unset reflects --author",
+		Dialect: "mysql",
 		SetUpScript: []string{
 			"CREATE PROCEDURE p1() SELECT 1",
 			"CALL DOLT_COMMIT('-Am', 'create procedure', '--author', 'Test Author <test@example.com>')",

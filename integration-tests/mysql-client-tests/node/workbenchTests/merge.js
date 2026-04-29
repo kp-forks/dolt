@@ -36,8 +36,8 @@ export const mergeTests = [
       {
         commit_hash: "",
         message: "Create table test",
-        committer: "dolt",
-        email: "dolt@%",
+        committer: "Dolt",
+        email: "dolt@dolthub.com",
         date: "",
         commit_order: 2,
         author: "Dolt",

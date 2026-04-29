@@ -586,7 +586,7 @@ teardown() {
     [ $status -eq 0 ]
     [[ "$output" =~ "Original Author <original@example.com>" ]] || false
     
-    run dolt cherry-pick $COMMIT_HASH
+    run env TZ=PST+8 DOLT_COMMITTER_DATE='2023-09-26T01:23:45' dolt cherry-pick $COMMIT_HASH
     [ $status -eq 0 ]
     
     run dolt log -n 1
@@ -594,10 +594,10 @@ teardown() {
     [[ "$output" =~ "Original Author <original@example.com>" ]] || false
     
     # Extended schema needed to verify author fields separately from committer
-    run dolt sql -q "SELECT author, author_email, author_date FROM dolt_log WHERE message = 'commit with specific author'" -r csv
+    run dolt sql -r csv -q "SELECT committer, email, date, author, author_email, author_date FROM dolt_log WHERE message = 'commit with specific author'"
     [ $status -eq 0 ]
-    [[ "$output" =~ "Original Author,original@example.com" ]] || false
-    [[ "$output" =~ "2023-09-26 01:23:45" ]] || false
+    [[ "${lines[0]}" == "committer,email,date,author,author_email,author_date" ]] || false
+    [[ "${lines[1]}" == "Bats Tests,bats@email.fake,2023-09-26 01:23:45.000,Original Author,original@example.com,2023-09-26 01:23:45" ]] || false
 }
 
 @test "cherry-pick: multiple authors preserved in sequence with merge workflow" {
@@ -649,13 +649,14 @@ teardown() {
     [[ "$output" =~ "Carol Architect <carol@company.com>" ]] || false
     [[ "$output" =~ "Integration Manager <integration@company.com>" ]] || false
     
-    run dolt sql -q "SELECT author, author_email, message FROM dolt_log WHERE author IN ('Alice Developer', 'Bob Engineer', 'Carol Architect', 'Integration Manager') OR message LIKE 'Merge%' ORDER BY commit_order" -r csv
+    run dolt sql -r csv -q "SELECT committer, email, author, author_email, message FROM dolt_log WHERE author IN ('Alice Developer', 'Bob Engineer', 'Carol Architect', 'Integration Manager') OR message LIKE 'Merge%' ORDER BY commit_order"
     [ $status -eq 0 ]
-    [[ "$output" =~ "Alice Developer,alice@company.com" ]] || false
-    [[ "$output" =~ "Bob Engineer,bob@company.com" ]] || false
-    [[ "$output" =~ "Carol Architect,carol@company.com" ]] || false
-    [[ "$output" =~ "Integration Manager,integration@company.com" ]] || false
-    [[ "$output" =~ "Merge integration_branch" ]] || false
+    [[ "${lines[0]}" == "committer,email,author,author_email,message" ]] || false
+    [[ "${lines[1]}" == "Bats Tests,bats@email.fake,Alice Developer,alice@company.com,Alice's feature" ]] || false
+    [[ "${lines[2]}" == "Bats Tests,bats@email.fake,Bob Engineer,bob@company.com,Bob's improvement" ]] || false
+    [[ "${lines[3]}" == "Bats Tests,bats@email.fake,Carol Architect,carol@company.com,Carol's refactor" ]] || false
+    [[ "${lines[4]}" == "Integration Manager,integration@company.com,Integration Manager,integration@company.com,prepare for merge" ]] || false
+    [[ "${lines[5]}" == "Bats Tests,bats@email.fake,Bats Tests,bats@email.fake,Merge integration_branch" ]] || false
 }
 @test "cherry-pick: --continue after resolving conflicts" {
     dolt branch continue_test

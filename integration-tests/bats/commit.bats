@@ -211,8 +211,6 @@ SQL
 }
 
 @test "commit: no config set" {
-    # In remote-engine mode, client identity variables are not forwarded to the server.
-    skip_if_remote
     dolt config --global --unset user.email
     dolt config --global --unset user.name
 

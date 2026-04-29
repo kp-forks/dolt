@@ -63,8 +63,8 @@ export const branchTests = [
       {
         name: "mybranch",
         hash: "",
-        latest_committer: "dolt",
-        latest_committer_email: "dolt@%",
+        latest_committer: "Dolt",
+        latest_committer_email: "dolt@dolthub.com",
         latest_commit_date: "",
         latest_commit_message: "Create table test",
         remote: "",

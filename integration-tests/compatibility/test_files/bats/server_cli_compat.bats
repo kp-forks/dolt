@@ -1,10 +1,13 @@
 #!/usr/bin/env bats
 #
-# Verifies the SQL server and CLI client work across Dolt versions. DOLT_OLD_BIN and
-# DOLT_NEW_BIN are slot labels assigned by runner.sh; the bidirectional phase swaps them
-# between sub-runs, so neither name claims age. Tests reach the binaries via old_dolt and
-# new_dolt; new_dolt_cli targets the running sql-server. REPO_DIR is the pre-populated
-# repo from setup_repo.sh.
+# Verifies the SQL server and CLI client work across Dolt versions. DOLT_OLD_BIN runs
+# the sql-server, DOLT_NEW_BIN runs the client; both default to dolt on PATH. Tests
+# reach the binaries via old_dolt and new_dolt; new_dolt_cli targets the running
+# sql-server. REPO_DIR is the pre-populated repo from setup_repo.sh.
+#
+# This file lives at the test_files/bats/ root rather than bidirectional/ because it
+# requires REPO_DIR to be populated by setup_repo.sh, while the bidirectional sub-phase
+# hands tests an empty REPO_DIR for self-init coverage.
 
 setup_file() {
   export BATS_TEST_RETRIES=3
@@ -64,7 +67,7 @@ teardown() {
   [[ "$revert_output" =~ "commit " ]] || false
 
   # The revert must remove the row inserted above.
-  run new_dolt_cli sql -r csv -q "SELECT count(*) AS n FROM big WHERE i = 10000;"
+  run new_dolt_cli sql -r csv -q "SELECT count(*) AS n FROM big WHERE pk = 10000;"
   [ "$status" -eq 0 ]
   [[ "${lines[0]}" == "n" ]] || false
   [[ "${lines[1]}" == "0" ]] || false

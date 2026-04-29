@@ -234,15 +234,12 @@ function no_stdout {
 
     dolt add .
     run dolt commit --author="John Doe <john@doe.com>" -m="Commit1"
-    [ "$status" -ne 0 ]
-    [[ "$output" =~ "Could not determine user.name" ]] || false
-
-    dolt config --global --add user.name "bats tester"
-    dolt config --global --add user.email "joshn@doe.com"
-
-    run dolt commit --author="John Doe <john@doe.com>" -m="Commit1"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "John Doe <john@doe.com>" ]] || false
+
+    run dolt log
+    [ "$status" -eq 0 ]
+    regex='John Doe <john@doe.com>'
+    [[ "$output" =~ "$regex" ]] || false
 }
 
 @test "config: SQL can create databases with no user and email set" {

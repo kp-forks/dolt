@@ -239,20 +239,15 @@ func constructParametrizedDoltCommitQuery(msg string, apr *argparser.ArgParseRes
 		writeToBuffer("-f")
 	}
 
-	writeToBuffer("--author")
-	param = true
-	writeToBuffer("?")
-	var author string
 	if apr.Contains(cli.AuthorParam) {
-		author, _ = apr.GetValue(cli.AuthorParam)
-	} else {
-		name, email, err := env.GetNameAndEmail(cliCtx.Config())
-		if err != nil {
-			return "", nil, err
-		}
-		author = name + " <" + email + ">"
+		writeToBuffer("--author")
+		param = true
+		writeToBuffer("?")
+		author, _ := apr.GetValue(cli.AuthorParam)
+		params = append(params, author)
+	} else if _, _, err := env.GetNameAndEmail(cliCtx.Config()); err != nil {
+		return "", nil, err
 	}
-	params = append(params, author)
 
 	if apr.Contains(cli.AllFlag) {
 		writeToBuffer("-a")

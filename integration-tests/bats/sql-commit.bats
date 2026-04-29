@@ -284,10 +284,15 @@ SQL
   [ $new_head = $(get_head_commit) ]
 }
 
-@test "sql-commit: committer environment variables set committer meta" {
+@test "sql-commit: committer and author environment variables set commit meta" {
   dolt sql -q "create table test_committer (pk int, c1 int, primary key(pk))"
   dolt add test_committer
   dolt commit -m "Initial commit"
+
+  run dolt sql -r csv -q "SELECT author, author_email, committer, email FROM dolt_log WHERE message = 'Initial commit'"
+  [ "$status" -eq 0 ]
+  [[ "$output" =~ author,author_email,committer,email ]] || false
+  [[ "$output" =~ "Bats Tests,bats@email.fake,Bats Tests,bats@email.fake" ]] || false
 
   dolt sql -q "create table test_committer2 (pk int, c1 int, primary key(pk))"
   dolt add test_committer2
@@ -312,10 +317,10 @@ SQL
   dolt add test_committer4
   TZ=PST+8 DOLT_COMMITTER_NAME="Date Committer" DOLT_COMMITTER_EMAIL="date@committer.com" DOLT_COMMITTER_DATE='2023-09-26T12:34:56' DOLT_AUTHOR_DATE='2023-09-26T01:23:45' DOLT_AUTHOR_NAME='Date Author' dolt commit -m "Commit with different committer timestamp"
 
-  run dolt sql -r csv -q "SELECT committer, email, date FROM dolt_commits WHERE message = 'Commit with different committer timestamp'"
+  run dolt sql -r csv -q "SELECT author, author_email, committer, email, date FROM dolt_commits WHERE message = 'Commit with different committer timestamp'"
   [ "$status" -eq 0 ]
   [[ "$output" =~ committer,email,date ]] || false
-  [[ "$output" =~ "Date Committer,date@committer.com,2023-09-26 12:34:56" ]] || false
+  [[ "$output" =~ "Date Author,bats@email.fake,Date Committer,date@committer.com,2023-09-26 12:34:56" ]] || false
 
   run dolt sql -r csv -q "SELECT author, author_date, committer, date FROM dolt_log WHERE message = 'Commit with different committer timestamp'"
   [ "$status" -eq 0 ]
