@@ -114,3 +114,8 @@ func TestClusterReadOnly(t *testing.T) {
 	t.Parallel()
 	RunTestsFile(t, "tests/sql-server-cluster-read-only.yaml")
 }
+
+func TestLargeValuesCluster(t *testing.T) {
+	t.Parallel()
+	RunTestsFile(t, "tests/sql-server-large-values.yaml")
+}
