@@ -254,11 +254,15 @@ assert_has_key_value() {
 }
 
 @test "show: primary index leaf" {
+    if [ "$DOLT_USE_ADAPTIVE_ENCODING" != "true" ]; then
+      skip "adaptive encoding only test"
+    fi
+  
     dolt sql <<EOF
 create table test(pk int primary key, t text, j json);
-insert into test values (0, "Hello", "{}"), (1, "World", "[]");
+insert into test values (0, repeat("Hello", 1000), "{}"), (1, repeat("World", 1000), "[]");
 EOF
-    run dolt show "#9heeqrj6idph7snnko484sqnobu2r46i"
+    run dolt show "#djo6ehdhn8o7s635fqrqeseacjkhkalo"
     [ $status -eq 0 ]
     [[ "$output" =~ "SerialMessage" ]] || false
     [[ "$output" =~ "{ key: 00000000 value:  #0isi5776c0lu0d7rvsnfl80gsdisilsa,  #e6sucun84ck3bgc1p9lorkibp30mvd2f }" ]] || false
@@ -266,11 +270,15 @@ EOF
 }
 
 @test "show: blob leaf" {
+    if [ "$DOLT_USE_ADAPTIVE_ENCODING" != "true" ]; then
+      skip "adaptive encoding only test"
+    fi
+  
     dolt sql <<EOF
 create table test(pk int primary key, t text, j json);
-insert into test values (0, "Hello", "{}"), (1, "World", "[]");
+insert into test values (0, repeat("Hello", 1000), "{}"), (1, repeat("World", 1000), "[]");
 EOF
-    run dolt show "#0isi5776c0lu0d7rvsnfl80gsdisilsa"
+    run dolt show "#4d1l6lkao3l0gasl6g22ctebebg1onth"
     [ $status -eq 0 ]
     [[ "$output" =~ "SerialMessage" ]] || false
     [[ "$output" =~ "Blob - Hello" ]] || false
