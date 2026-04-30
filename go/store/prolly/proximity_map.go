@@ -22,6 +22,7 @@ import (
 
 	"github.com/dolthub/go-mysql-server/sql"
 	"github.com/dolthub/go-mysql-server/sql/expression/function/vector"
+	gmstypes "github.com/dolthub/go-mysql-server/sql/types"
 
 	"github.com/dolthub/dolt/go/store/hash"
 	"github.com/dolthub/dolt/go/store/pool"
@@ -156,6 +157,11 @@ func getConvertToVectorFunction(keyDesc *val.TupleDesc, ns tree.NodeStore) (tree
 			jsonVal, _, err := keyDesc.GetJsonAdaptiveValue(ctx, 0, ns, bytes)
 			if err != nil {
 				return nil, err
+			}
+			// Inline JSON values are returned as raw bytes; wrap them so ConvertToVector
+			// treats them as JSON rather than as a binary-encoded vector.
+			if b, ok := jsonVal.([]byte); ok {
+				jsonVal = gmstypes.NewLazyJSONDocument(b)
 			}
 			return sql.ConvertToVector(ctx, jsonVal)
 		}, nil

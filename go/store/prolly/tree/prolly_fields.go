@@ -129,9 +129,8 @@ func GetField(ctx context.Context, td *val.TupleDesc, i int, tup val.Tuple, ns N
 			case *val.JsonAdaptiveStorage:
 				v, err = NewJSONDoc(val.Addr(), ns).ToIndexedJSONDocument(ctx)
 			case []byte:
-				var doc types.JSONDocument
-				err = json.Unmarshal(val, &doc.Val)
-				v = doc
+				val = unescapeHTMLCodepoints(val)
+				return types.NewLazyJSONDocument(val), nil
 			default:
 				err = fmt.Errorf("unexpected type for JsonAdaptiveEnc: %T", val)
 			}
