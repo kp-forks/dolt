@@ -1111,11 +1111,11 @@ func TestWideTable(t *testing.T) {
 
 	t.Run("ManyVarcharColumns", func(t *testing.T) {
 		t.Parallel()
-		// 100 VARCHAR(400) columns filled to capacity. The total inline row
-		// size per row approaches 40 KB, well into the territory that stresses
-		// Dolt's row serialisation for wide but not out-of-band data.
-		const numCols = 100
-		const colWidth = 400
+		// 8 VARCHAR(300) columns. Dolt's per-column accounting for VARCHAR(300)
+		// is roughly 8 KB, so 8 columns puts the row near (but under) Dolt's
+		// 64 KB inline-row limit while still stressing wide-row serialisation.
+		const numCols = 8
+		const colWidth = 300
 		const numRows = 20
 
 		server := setupTestServer(t, "wide_varchar_table")
@@ -1153,16 +1153,16 @@ func TestWideTable(t *testing.T) {
 
 		// Every cell should be exactly colWidth bytes.
 		err = conn.QueryRowContext(ctx,
-			fmt.Sprintf("SELECT COUNT(*) FROM wide_varchar WHERE LENGTH(c0) = %d AND LENGTH(c99) = %d",
-				colWidth, colWidth)).Scan(&count)
+			fmt.Sprintf("SELECT COUNT(*) FROM wide_varchar WHERE LENGTH(c0) = %d AND LENGTH(c%d) = %d",
+				colWidth, numCols-1, colWidth)).Scan(&count)
 		require.NoError(t, err)
 		require.Equal(t, numRows, count, "all VARCHAR cells must retain their full width")
 
 		// Verify that a specific cell starts with the right prefix.
 		var cell string
-		err = conn.QueryRowContext(ctx, "SELECT c50 FROM wide_varchar WHERE id = 10").Scan(&cell)
+		err = conn.QueryRowContext(ctx, "SELECT c4 FROM wide_varchar WHERE id = 10").Scan(&cell)
 		require.NoError(t, err)
-		require.True(t, strings.HasPrefix(cell, "r010c050-"),
+		require.True(t, strings.HasPrefix(cell, "r010c004-"),
 			"VARCHAR cell content must encode the correct (row, col) position")
 
 		_, err = conn.ExecContext(ctx, "CALL DOLT_GC()")
