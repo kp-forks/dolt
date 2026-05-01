@@ -152,7 +152,7 @@ func compare(typ Type, left, right []byte) int {
 		return compareAddr(readAddr(left), readAddr(right))
 	case CellEnc:
 		return compareCell(readCell(left), readCell(right))
-	case BytesAdaptiveEnc, StringAdaptiveEnc, GeomAdaptiveEnc:
+	case BytesAdaptiveEnc, StringAdaptiveEnc, GeomAdaptiveEnc, JsonAdaptiveEnc:
 		return compareAdaptiveValue(left, right)
 	default:
 		panic("unknown encoding")

@@ -90,12 +90,12 @@ func (tcc *testCommitClock) Now() time.Time {
 }
 
 func installTestCommitClock(tcc *testCommitClock) func() {
-	oldNowFunc := datas.CommitterDate
+	oldNowFunc := datas.CommitNow
 	oldCommitLoc := datas.CommitLoc
-	datas.CommitterDate = tcc.Now
+	datas.CommitNow = tcc.Now
 	datas.CommitLoc = time.UTC
 	return func() {
-		datas.CommitterDate = oldNowFunc
+		datas.CommitNow = oldNowFunc
 		datas.CommitLoc = oldCommitLoc
 	}
 }
@@ -568,6 +568,17 @@ func RunLargeJsonObjectsTest(t *testing.T, harness DoltEnginetestHarness) {
 	defer harness.Close()
 	for _, script := range LargeJsonObjectScriptTests {
 		enginetest.TestScript(t, harness, script)
+	}
+}
+
+func RunJsonAdaptiveEncodingTests(t *testing.T, harness DoltEnginetestHarness) {
+	defer harness.Close()
+	for _, script := range JsonAdaptiveEncodingScriptTests {
+		func() {
+			h := harness.NewHarness(t)
+			defer h.Close()
+			enginetest.TestScript(t, h, script)
+		}()
 	}
 }
 

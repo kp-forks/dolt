@@ -119,7 +119,7 @@ func IterAddressFields(td *TupleDesc, cb func(int, Type)) {
 func IterAdaptiveFields(td *TupleDesc, cb func(int, Type)) {
 	for i, typ := range td.Types {
 		switch typ.Enc {
-		case BytesAdaptiveEnc, StringAdaptiveEnc, ExtendedAdaptiveEnc, GeomAdaptiveEnc:
+		case BytesAdaptiveEnc, StringAdaptiveEnc, ExtendedAdaptiveEnc, GeomAdaptiveEnc, JsonAdaptiveEnc:
 			cb(i, typ)
 		}
 	}
@@ -149,8 +149,13 @@ func makeFixedAccess(types []Type) (acc FixedAccess) {
 	return
 }
 
+// AddressFieldCount returns the number of fields in the TupleDesc that are either address-encoded or adaptive-encoded,
+// and thus require address lookups to access. For adaptive encoded fields, this count is a maximum.
 func (td *TupleDesc) AddressFieldCount() (n int) {
 	IterAddressFields(td, func(int, Type) {
+		n++
+	})
+	IterAdaptiveFields(td, func(int, Type) {
 		n++
 	})
 	return
@@ -504,14 +509,14 @@ func (td *TupleDesc) GetGeometryAddr(i int, tup Tuple) (hash.Hash, bool) {
 	return td.GetAddr(i, tup)
 }
 
-// GetGeomAdaptiveValue reads a geometry value from an adaptive-encoded field, returning a *GeometryStorage
-// that defers deserialization until the value is actually needed.
-func (td *TupleDesc) GetGeomAdaptiveValue(ctx context.Context, i int, vs ValueStore, tup Tuple) (*GeometryStorage, bool, error) {
+// GetGeomAdaptiveValue returns either a Geometry value or a GeometryStorage depending on whether it is stored inlined.
+func (td *TupleDesc) GetGeomAdaptiveValue(ctx context.Context, i int, vs ValueStore, tup Tuple) (any, bool, error) {
 	td.ExpectEncoding(i, GeomAdaptiveEnc)
-	return GetGeomAdaptiveValue(ctx, vs, td.GetField(i, tup))
+	return getGeomAdaptiveValue(ctx, vs, td.GetField(i, tup))
 }
 
-func GetGeomAdaptiveValue(ctx context.Context, vs ValueStore, val []byte) (*GeometryStorage, bool, error) {
+// getGeomAdaptiveValue returns either a Geometry value or a GeometryStorage depending on whether it is stored inlined.
+func getGeomAdaptiveValue(ctx context.Context, vs ValueStore, val []byte) (any, bool, error) {
 	adaptiveValue := AdaptiveValue(val)
 	if len(adaptiveValue) == 0 {
 		return nil, false, nil
@@ -521,7 +526,7 @@ func GetGeomAdaptiveValue(ctx context.Context, vs ValueStore, val []byte) (*Geom
 		if err != nil {
 			return nil, false, err
 		}
-		return NewGeometryStorageInline(bytes), true, nil
+		return bytes, true, nil
 	} else {
 		gs, err := adaptiveValue.convertToGeometryStorage(ctx, vs)
 		return gs, true, err
@@ -609,6 +614,30 @@ func (td *TupleDesc) GetStringAdaptiveValue(i int, vs ValueStore, tup Tuple) (in
 		val, err := adaptiveValue.convertToTextStorage(ctx, vs, nil)
 		return val, true, err
 	}
+}
+
+// GetJsonAdaptiveValue reads a JSON value from an adaptive-encoded field, returning a *JsonAdaptiveStorage
+// that defers byte loading and JSON deserialization until the value is actually needed.
+func (td *TupleDesc) GetJsonAdaptiveValue(ctx context.Context, i int, vs ValueStore, tup Tuple) (any, bool, error) {
+	td.ExpectEncoding(i, JsonAdaptiveEnc)
+	return GetJsonAdaptiveValue(ctx, vs, td.GetField(i, tup))
+}
+
+// GetJsonAdaptiveValue is the standalone version used when a TupleDesc is not available.
+func GetJsonAdaptiveValue(ctx context.Context, vs ValueStore, field []byte) (any, bool, error) {
+	adaptiveValue := AdaptiveValue(field)
+	if adaptiveValue.IsNull() {
+		return nil, false, nil
+	}
+	if adaptiveValue.isInlined() {
+		bytes, err := adaptiveValue.getUnderlyingBytes(ctx, vs)
+		if err != nil {
+			return nil, false, err
+		}
+		return bytes, true, nil
+	}
+	gs, err := adaptiveValue.convertToJsonStorage(ctx, vs)
+	return gs, true, err
 }
 
 func (td *TupleDesc) GetCommitAddr(i int, tup Tuple) (v hash.Hash, ok bool) {

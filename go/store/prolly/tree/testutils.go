@@ -296,6 +296,12 @@ func randomField(tb *val.TupleBuilder, idx int, typ val.Type, ns NodeStore) {
 			panic("failed to write bytes tree")
 		}
 		tb.PutBytesAddr(idx, addr)
+	case val.JsonAdaptiveEnc:
+		jsonBytes := []byte(`{"key":"value"}`)
+		err := tb.PutAdaptiveJsonFromInline(context.Background(), idx, jsonBytes)
+		if err != nil {
+			panic("failed to write json adaptive value")
+		}
 	default:
 		panic("unknown encoding")
 	}

@@ -2221,6 +2221,9 @@ func (m *valueMerger) processColumn(ctx *sql.Context, i int, left, right, base v
 			if baseCol == nil || leftCol == nil || rightCol == nil {
 				return nil, true, nil
 			}
+			if resultType.Enc == val.JsonAdaptiveEnc {
+				return m.mergeJSONAdaptive(ctx, baseCol, leftCol, rightCol)
+			}
 			return m.mergeJSONAddr(ctx, baseCol, leftCol, rightCol)
 		}
 		// otherwise, this is a conflict.
@@ -2257,19 +2260,78 @@ func (m *valueMerger) mergeJSONAddr(ctx context.Context, baseAddr []byte, leftAd
 	return mergedDoc, false, nil
 }
 
-func mergeJSON(ctx context.Context, ns tree.NodeStore, base, left, right sql.JSONWrapper) (resultDoc sql.JSONWrapper, conflict bool, err error) {
+func (m *valueMerger) mergeJSONAdaptive(ctx context.Context, baseField []byte, leftField []byte, rightField []byte) (result []byte, conflict bool, err error) {
+	baseDoc, _, err := val.GetJsonAdaptiveValue(ctx, m.ns, baseField)
+	if err != nil {
+		return nil, true, err
+	}
+	leftDoc, _, err := val.GetJsonAdaptiveValue(ctx, m.ns, leftField)
+	if err != nil {
+		return nil, true, err
+	}
+	rightDoc, _, err := val.GetJsonAdaptiveValue(ctx, m.ns, rightField)
+	if err != nil {
+		return nil, true, err
+	}
+
+	var baseJson, leftJson, rightJson sql.JSONWrapper
+	baseJson, err = toJsonWrapper(baseDoc)
+	if err != nil {
+		return nil, false, err
+	}
+
+	leftJson, err = toJsonWrapper(leftDoc)
+	if err != nil {
+		return nil, false, err
+	}
+
+	rightJson, err = toJsonWrapper(rightDoc)
+	if err != nil {
+		return nil, false, err
+	}
+
+	mergedDoc, conflict, err := mergeJSON(ctx, m.ns, baseJson, leftJson, rightJson)
+	if err != nil {
+		return nil, true, err
+	}
+	if conflict {
+		return nil, true, nil
+	}
+
+	jsonBytes, err := types.MarshallJson(ctx, mergedDoc)
+	if err != nil {
+		return nil, true, err
+	}
+
+	// Mirror the storage format of the left input: if the left field was stored
+	// out-of-band (large document), store the merged result out-of-band too.
+	// If the left field was inline (small document), keep the merged result inline.
+	// This matches the behavior of the TupleBuilder, which stores values inline when
+	// the tuple is small and promotes them out-of-band when the tuple is large.
+	if val.AdaptiveValue(leftField).IsOutOfBand() {
+		adaptiveVal, err := val.NewOutOfBandAdaptiveValue(ctx, m.ns, jsonBytes)
+		if err != nil {
+			return nil, true, err
+		}
+		return adaptiveVal, false, nil
+	}
+
+	result = val.AdaptiveValueInlineBytes(jsonBytes)
+	return result, false, nil
+}
+
+func mergeJSON(ctx context.Context, ns tree.NodeStore, baseJson, leftJson, rightJson sql.JSONWrapper) (resultDoc sql.JSONWrapper, conflict bool, err error) {
 	// First, deserialize each value into JSON.
 	// We can only merge if the value at all three commits is a JSON object.
-
-	baseIsObject, err := tree.IsJsonObject(ctx, base)
+	baseIsObject, err := tree.IsJsonObject(ctx, baseJson)
 	if err != nil {
 		return nil, true, err
 	}
-	leftIsObject, err := tree.IsJsonObject(ctx, left)
+	leftIsObject, err := tree.IsJsonObject(ctx, leftJson)
 	if err != nil {
 		return nil, true, err
 	}
-	rightIsObject, err := tree.IsJsonObject(ctx, right)
+	rightIsObject, err := tree.IsJsonObject(ctx, rightJson)
 	if err != nil {
 		return nil, true, err
 	}
@@ -2278,24 +2340,24 @@ func mergeJSON(ctx context.Context, ns tree.NodeStore, base, left, right sql.JSO
 		// At least one of the commits does not have a JSON object.
 		// If both left and right have the same value, use that value.
 		// But if they differ, this is an unresolvable merge conflict.
-		cmp, err := types.CompareJSON(ctx, left, right)
+		cmp, err := types.CompareJSON(ctx, leftJson, rightJson)
 		if err != nil {
 			return types.JSONDocument{}, true, err
 		}
 		if cmp == 0 {
 			// convergent operation.
-			return left, false, nil
+			return leftJson, false, nil
 		} else {
 			return types.JSONDocument{}, true, nil
 		}
 	}
 
-	leftDiffer, err := tree.NewJsonDiffer(ctx, base, left)
+	leftDiffer, err := tree.NewJsonDiffer(ctx, baseJson, leftJson)
 	if err != nil {
 		return nil, true, err
 	}
 
-	rightDiffer, err := tree.NewJsonDiffer(ctx, base, right)
+	rightDiffer, err := tree.NewJsonDiffer(ctx, baseJson, rightJson)
 	if err != nil {
 		return nil, true, err
 	}
@@ -2310,8 +2372,8 @@ func mergeJSON(ctx context.Context, ns tree.NodeStore, base, left, right sql.JSO
 	// If the left object isn't an IndexedJsonDocument, we make one.
 	var ok bool
 	var merged tree.IndexedJsonDocument
-	if merged, ok = left.(tree.IndexedJsonDocument); !ok {
-		root, err := tree.SerializeJsonToAddr(ctx, ns, left)
+	if merged, ok = leftJson.(tree.IndexedJsonDocument); !ok {
+		root, err := tree.SerializeJsonToAddr(ctx, ns, leftJson)
 		if err != nil {
 			return types.JSONDocument{}, true, err
 		}
@@ -2345,6 +2407,29 @@ func mergeJSON(ctx context.Context, ns tree.NodeStore, base, left, right sql.JSO
 		default:
 			panic("unreachable")
 		}
+	}
+}
+
+func toJsonWrapper(baseJson any) (sql.JSONWrapper, error) {
+	switch x := baseJson.(type) {
+	case []byte:
+		var v any
+		err := json.Unmarshal(x, &v)
+		if err != nil {
+			return nil, err
+		}
+		return types.JSONDocument{Val: v}, nil
+	case string:
+		var v any
+		err := json.Unmarshal([]byte(x), &v)
+		if err != nil {
+			return nil, err
+		}
+		return types.JSONDocument{Val: v}, nil
+	case sql.JSONWrapper:
+		return x, nil
+	default:
+		return nil, fmt.Errorf("unexpected type for JSON value: %T", baseJson)
 	}
 }
 

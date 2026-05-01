@@ -254,6 +254,9 @@ assert_has_key_value() {
 }
 
 @test "show: primary index leaf" {
+    if [ "$DOLT_USE_ADAPTIVE_ENCODING" = "true" ]; then
+        skip "adaptive encoding stores small values inline; see 'primary index leaf - adaptive encoding'"
+    fi
     dolt sql <<EOF
 create table test(pk int primary key, t text, j json);
 insert into test values (0, "Hello", "{}"), (1, "World", "[]");
@@ -265,7 +268,25 @@ EOF
     [[ "$output" =~ "{ key: 01000000 value:  #8scr7d6rtnafqovoa7d06em7jkpil9gg,  #8arugs9qup4pvpmqbf64lpkm9f6cdv74 }" ]] || false
 }
 
+@test "show: primary index leaf - adaptive encoding" {
+    if [ "$DOLT_USE_ADAPTIVE_ENCODING" != "true" ]; then
+        skip "requires adaptive encoding; see 'primary index leaf'"
+    fi
+    dolt sql <<EOF
+create table test(pk int primary key, t text, j json);
+insert into test values (0, repeat('Hello ', 1000), JSON_OBJECT('k', repeat('v', 5000))), (1, repeat('World ', 1000), JSON_ARRAY(repeat('x', 5000)));
+EOF
+    run dolt show "#67gpud9imdr3cni5sdonn953t8gfjmmt"
+    [ $status -eq 0 ]
+    [[ "$output" =~ "SerialMessage" ]] || false
+    [[ "$output" =~ "{ key: 00000000 value: f90e805705317c7e38ec595c8152508bbb8160cb9247e6, f90aa00bbf6decf5e8d5529343ff1866e940905e30e685 }" ]] || false
+    [[ "$output" =~ "{ key: 01000000 value: f90e80712c1adb322a6ed69f616964bd76ba20b6ec7a8d, f90a9c74faa5553fc209573262e1ea61748437af04a163 }" ]] || false
+}
+
 @test "show: blob leaf" {
+    if [ "$DOLT_USE_ADAPTIVE_ENCODING" = "true" ]; then
+        skip "adaptive encoding stores small values inline; see 'blob leaf - adaptive encoding'"
+    fi
     dolt sql <<EOF
 create table test(pk int primary key, t text, j json);
 insert into test values (0, "Hello", "{}"), (1, "World", "[]");
@@ -274,6 +295,20 @@ EOF
     [ $status -eq 0 ]
     [[ "$output" =~ "SerialMessage" ]] || false
     [[ "$output" =~ "Blob - Hello" ]] || false
+}
+
+@test "show: blob leaf - adaptive encoding" {
+    if [ "$DOLT_USE_ADAPTIVE_ENCODING" != "true" ]; then
+        skip "requires adaptive encoding; see 'blob leaf'"
+    fi
+    dolt sql <<EOF
+create table test(pk int primary key, t text, j json);
+insert into test values (0, repeat('Hello ', 1000), JSON_OBJECT('k', repeat('v', 5000))), (1, repeat('World ', 1000), JSON_ARRAY(repeat('x', 5000)));
+EOF
+    run dolt show "#m7oolcf2aagtg7e5curkunioanepmma5"
+    [ $status -eq 0 ]
+    [[ "$output" =~ "SerialMessage" ]] || false
+    [[ "$output" =~ "Blob - Hello Hello" ]] || false
 }
 
 @test "show: blob non-leaf" {

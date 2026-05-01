@@ -17,6 +17,7 @@ package val
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"math"
 	"math/rand"
 	"testing"
@@ -38,6 +39,15 @@ func TestTupleBuilder(t *testing.T) {
 	t.Run("build large tuple", func(t *testing.T) {
 		testBuildLargeTuple(t)
 	})
+}
+
+// assertJsonEqual unmarshals both JSON byte slices and compares the resulting structures.
+func assertJsonEqual(t *testing.T, expected, actual []byte) {
+	t.Helper()
+	var expVal, actVal interface{}
+	require.NoError(t, json.Unmarshal(expected, &expVal))
+	require.NoError(t, json.Unmarshal(actual, &actVal))
+	require.Equal(t, expVal, actVal)
 }
 
 func smokeTestTupleBuilder(t *testing.T) {
@@ -271,6 +281,187 @@ func (t *TestValueStore) WriteBytes(_ context.Context, val []byte) (h hash.Hash,
 }
 
 var _ ValueStore = &TestValueStore{}
+
+func TestTupleBuilderJsonAdaptiveEncoding(t *testing.T) {
+	ctx := sql.NewEmptyContext()
+	smallJson := []byte(`{"key":"value"}`)
+	largeJson := func() []byte {
+		// Build a JSON object large enough to exceed the inline target.
+		m := make(map[string]string)
+		for i := 0; i < 200; i++ {
+			m[string(rune('a'+i%26))+string(rune('A'+i%26))+string(rune('0'+i%10))] = "xxxxxxxxxx"
+		}
+		b, _ := json.Marshal(m)
+		return b
+	}()
+
+	t.Run("round trip inlined JSON value", func(t *testing.T) {
+		types := []Type{{Enc: JsonAdaptiveEnc}}
+		vs := &TestValueStore{}
+		td := NewTupleDescriptor(types...)
+		tb := NewTupleBuilder(td, vs)
+
+		err := tb.PutAdaptiveJsonFromInline(ctx, 0, smallJson)
+		require.NoError(t, err)
+		tup, err := tb.Build(testPool)
+		require.NoError(t, err)
+
+		result, ok, err := td.GetJsonAdaptiveValue(ctx, 0, vs, tup)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.NotNil(t, result)
+
+		bytes, ok := result.([]byte)
+		require.True(t, ok, "expected inlined JSON value to be []byte")
+		assertJsonEqual(t, smallJson, bytes)
+	})
+
+	t.Run("round trip out-of-band JSON value via outline", func(t *testing.T) {
+		types := []Type{{Enc: JsonAdaptiveEnc}}
+		vs := &TestValueStore{}
+		td := NewTupleDescriptor(types...)
+		tb := NewTupleBuilder(td, vs)
+
+		// Write the large JSON out-of-band and record the address.
+		h, err := vs.WriteBytes(ctx, largeJson)
+		require.NoError(t, err)
+		storage := NewJsonStorageOutOfBand(h, vs, int64(len(largeJson)))
+		tb.PutAdaptiveJsonFromOutline(0, storage)
+
+		tup, err := tb.Build(testPool)
+		require.NoError(t, err)
+
+		result, ok, err := td.GetJsonAdaptiveValue(ctx, 0, vs, tup)
+		require.NoError(t, err)
+		require.True(t, ok)
+		require.NotNil(t, result)
+
+		wrapper, ok := result.(*JsonAdaptiveStorage)
+		require.True(t, ok, "expected out-of-band JSON value to be a JsonAdaptiveStorage")
+		gotBytes, err := wrapper.GetBytes(ctx)
+		require.NoError(t, err)
+		assertJsonEqual(t, largeJson, gotBytes)
+	})
+
+	t.Run("large JSON promoted out-of-band by tuple builder", func(t *testing.T) {
+		// Two columns: one small (stays inline), one large (promoted out-of-band).
+		types := []Type{{Enc: JsonAdaptiveEnc}, {Enc: JsonAdaptiveEnc}}
+		vs := &TestValueStore{}
+		td := NewTupleDescriptor(types...)
+		tb := NewTupleBuilder(td, vs)
+
+		err := tb.PutAdaptiveJsonFromInline(ctx, 0, smallJson)
+		require.NoError(t, err)
+		err = tb.PutAdaptiveJsonFromInline(ctx, 1, largeJson)
+		require.NoError(t, err)
+
+		tup, err := tb.Build(testPool)
+		require.NoError(t, err)
+
+		// Column 0 (small) should stay inline.
+		result0, ok, err := td.GetJsonAdaptiveValue(ctx, 0, vs, tup)
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		result0, ok = result0.([]byte)
+		require.True(t, ok, "small column should be stored inline")
+
+		assertJsonEqual(t, smallJson, result0.([]byte))
+
+		// Column 1 (large) should be out-of-band.
+		result1, ok, err := td.GetJsonAdaptiveValue(ctx, 1, vs, tup)
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		result1, ok = result1.(*JsonAdaptiveStorage)
+		require.True(t, ok, "expected out-of-band JSON value to be a JsonAdaptiveStorage")
+
+		gotBytes1, err := result1.(*JsonAdaptiveStorage).GetBytes(ctx)
+		require.NoError(t, err)
+		assertJsonEqual(t, largeJson, gotBytes1)
+	})
+
+	t.Run("null JSON value", func(t *testing.T) {
+		types := []Type{{Enc: JsonAdaptiveEnc, Nullable: true}}
+		vs := &TestValueStore{}
+		td := NewTupleDescriptor(types...)
+		tb := NewTupleBuilder(td, vs)
+
+		// Don't write any value – the field should be NULL.
+		tup, err := tb.Build(testPool)
+		require.NoError(t, err)
+
+		result, ok, err := td.GetJsonAdaptiveValue(ctx, 0, vs, tup)
+		require.NoError(t, err)
+		require.False(t, ok)
+		require.Nil(t, result)
+	})
+
+	t.Run("ToInterface deserializes correctly", func(t *testing.T) {
+		types := []Type{{Enc: JsonAdaptiveEnc}}
+		vs := &TestValueStore{}
+		td := NewTupleDescriptor(types...)
+		tb := NewTupleBuilder(td, vs)
+
+		err := tb.PutAdaptiveJsonFromInline(ctx, 0, largeJson)
+		require.NoError(t, err)
+		tup, err := tb.Build(testPool)
+		require.NoError(t, err)
+
+		result, ok, err := td.GetJsonAdaptiveValue(ctx, 0, vs, tup)
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		jsonVal, ok := result.(*JsonAdaptiveStorage)
+		require.True(t, ok, "expected JSON value to be a JsonAdaptiveStorage")
+
+		iface, err := jsonVal.ToInterface(ctx)
+		require.NoError(t, err)
+
+		var expectedJson any
+		json.Unmarshal(largeJson, &expectedJson)
+
+		require.Equal(t, expectedJson, iface)
+	})
+
+	t.Run("out-of-band pass-through does not reload bytes", func(t *testing.T) {
+		// Write a large JSON value and get it back as a JsonStorage (out-of-band).
+		types := []Type{{Enc: JsonAdaptiveEnc}}
+		vs := &TestValueStore{}
+		td := NewTupleDescriptor(types...)
+		tb := NewTupleBuilder(td, vs)
+
+		err := tb.PutAdaptiveJsonFromInline(ctx, 0, largeJson)
+		require.NoError(t, err)
+		tup, err := tb.Build(testPool)
+		require.NoError(t, err)
+
+		outOfBandResult, ok, err := td.GetJsonAdaptiveValue(ctx, 0, vs, tup)
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		_, ok = outOfBandResult.(*JsonAdaptiveStorage)
+		require.True(t, ok, "expected JSON value to be a JsonAdaptiveStorage")
+
+		// Put the out-of-band JsonStorage back into a new tuple (pass-through).
+		tb2 := NewTupleBuilder(td, vs)
+		tb2.PutAdaptiveJsonFromOutline(0, outOfBandResult.(*JsonAdaptiveStorage))
+		tup2, err := tb2.Build(testPool)
+		require.NoError(t, err)
+
+		// The value should still be readable after the pass-through.
+		result2, ok, err := td.GetJsonAdaptiveValue(ctx, 0, vs, tup2)
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		retrieved, ok := result2.(*JsonAdaptiveStorage)
+		require.True(t, ok, "expected JSON value to be a JsonAdaptiveStorage")
+
+		gotBytes, err := retrieved.GetBytes(ctx)
+		require.NoError(t, err)
+		assertJsonEqual(t, largeJson, gotBytes)
+	})
+}
 
 func TestTupleBuilderAdaptiveEncodings(t *testing.T) {
 	ctx := sql.NewEmptyContext()

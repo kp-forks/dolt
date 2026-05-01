@@ -269,6 +269,7 @@ require_binaries() {
 # ---------------------------------------------------------------------------
 
 @test "remote_add_column: JSON" {
+    skip "breaking change to json encoding, can be unskipped for post-2.0 testing"
     require_binaries
     run_workflow "JSON" \
       "'{\"k\":\"a-20\"}'" "'{\"k\":\"a-21\"}'" \

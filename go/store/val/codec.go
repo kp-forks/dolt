@@ -124,7 +124,8 @@ func IsAdaptiveEncoding(enc Encoding) bool {
 	case BytesAdaptiveEnc,
 		StringAdaptiveEnc,
 		ExtendedAdaptiveEnc,
-		GeomAdaptiveEnc:
+		GeomAdaptiveEnc,
+		JsonAdaptiveEnc:
 		return true
 	default:
 		return false
@@ -147,6 +148,7 @@ const (
 	BytesAdaptiveEnc    = Encoding(serial.EncodingBytesAdaptive)
 	ExtendedAdaptiveEnc = Encoding(serial.EncodingExtendedAdaptive)
 	GeomAdaptiveEnc     = Encoding(serial.EncodingGeomAdaptive)
+	JsonAdaptiveEnc     = Encoding(serial.EncodingJsonAdaptive)
 )
 
 func sizeFromType(t Type) (ByteSize, bool) {

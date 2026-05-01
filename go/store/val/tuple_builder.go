@@ -575,6 +575,11 @@ func (tb *TupleBuilder) PutAdaptiveGeomFromInline(ctx context.Context, i int, v 
 	return tb.PutAdaptiveFromInline(ctx, i, v)
 }
 
+func (tb *TupleBuilder) PutAdaptiveJsonFromInline(ctx context.Context, i int, v []byte) error {
+	tb.Desc.ExpectEncoding(i, JsonAdaptiveEnc)
+	return tb.PutAdaptiveFromInline(ctx, i, v)
+}
+
 func (tb *TupleBuilder) PutAdaptiveExtendedFromInline(ctx context.Context, i int, v []byte) error {
 	tb.Desc.ExpectEncoding(i, ExtendedAdaptiveEnc)
 	return tb.PutAdaptiveFromInline(ctx, i, v)
@@ -641,6 +646,11 @@ func (tb *TupleBuilder) PutAdaptiveExtendedFromOutline(i int, v *ExtendedValueWr
 func (tb *TupleBuilder) PutAdaptiveGeomFromOutOfBand(i int, maxByteLength int64, addr hash.Hash) {
 	tb.Desc.ExpectEncoding(i, GeomAdaptiveEnc)
 	tb.PutAdaptiveFromOutline(i, maxByteLength, addr)
+}
+
+func (tb *TupleBuilder) PutAdaptiveJsonFromOutline(i int, v *JsonAdaptiveStorage) {
+	tb.Desc.ExpectEncoding(i, JsonAdaptiveEnc)
+	tb.PutAdaptiveFromOutline(i, v.MaxByteLength(), v.Addr())
 }
 
 func (tb *TupleBuilder) PutAdaptiveBytesFromOutline(i int, v *ByteArray) {

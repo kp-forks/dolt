@@ -114,6 +114,27 @@ func GetField(ctx context.Context, td *val.TupleDesc, i int, tup val.Tuple, ns N
 		}
 	case val.GeomAdaptiveEnc:
 		v, ok, err = td.GetGeomAdaptiveValue(ctx, i, ns, tup)
+		if ok {
+			switch val := v.(type) {
+			case *val.GeometryStorage:
+			// pass through, will be unwrapped as needed
+			case []byte:
+				v, err = deserializeGeometry(val)
+			}
+		}
+	case val.JsonAdaptiveEnc:
+		v, ok, err = td.GetJsonAdaptiveValue(ctx, i, ns, tup)
+		if ok {
+			switch val := v.(type) {
+			case *val.JsonAdaptiveStorage:
+				v, err = NewJSONDoc(val.Addr(), ns).ToIndexedJSONDocument(ctx)
+			case []byte:
+				val = unescapeHTMLCodepoints(val)
+				return types.NewLazyJSONDocument(val), nil
+			default:
+				err = fmt.Errorf("unexpected type for JsonAdaptiveEnc: %T", val)
+			}
+		}
 	case val.Hash128Enc:
 		v, ok = td.GetHash128(i, tup)
 	case val.BytesAddrEnc:
@@ -323,18 +344,30 @@ func GetFieldValue(ctx context.Context, td *val.TupleDesc, i int, tup val.Tuple,
 		}
 		return v, nil
 
+	case val.JsonAdaptiveEnc:
+		v.Typ = querypb.Type_JSON
+		b := td.GetField(i, tup)
+
+		var isInline bool
+		if v.Val, isInline = val.InlineValueBytes(b); isInline {
+			return v, nil
+		}
+
+		// out-of-band: varint length + 20-byte address
+		length, offset := uvarint.Uvarint(b)
+		h := hash.New(b[offset:])
+		v.WrappedVal = val.NewJsonStorageOutOfBand(h, ns, int64(length))
+		return v, nil
+
 	case val.BytesAdaptiveEnc, val.StringAdaptiveEnc:
 		v.Typ = querypb.Type_BLOB
 		b := td.GetField(i, tup)
-		// null value
-		if len(b) == 0 {
+
+		var isInline bool
+		if v.Val, isInline = val.InlineValueBytes(b); isInline {
 			return v, nil
 		}
-		// inlined
-		if b[0] == 0 {
-			v.Val = b[1:]
-			return v, nil
-		}
+
 		// out-of-band
 		_, lengthBytes := uvarint.Uvarint(b)
 		h := hash.New(b[lengthBytes:])
@@ -344,20 +377,17 @@ func GetFieldValue(ctx context.Context, td *val.TupleDesc, i int, tup val.Tuple,
 	case val.GeomAdaptiveEnc:
 		v.Typ = querypb.Type_GEOMETRY
 		b := td.GetField(i, tup)
-		// null value
-		if len(b) == 0 {
+
+		var isInline bool
+		if v.Val, isInline = val.InlineValueBytes(b); isInline {
 			return v, nil
 		}
-		// inlined
-		if b[0] == 0 {
-			v.Val = b[1:]
-			return v, nil
-		}
+
 		// out-of-band
-		_, lengthBytes := uvarint.Uvarint(b)
-		h := hash.New(b[lengthBytes:])
-		v.Val, err = ns.ReadBytes(ctx, h)
-		return v, err
+		length, offset := uvarint.Uvarint(b)
+		h := hash.New(b[offset:])
+		v.WrappedVal = val.NewGeometryStorageOutOfBand(h, ns, int64(length))
+		return v, nil
 
 	default:
 		panic("unknown val.encoding")
@@ -462,20 +492,7 @@ func PutField(ctx context.Context, ns NodeStore, tb *val.TupleBuilder, i int, v 
 	case val.GeomAdaptiveEnc:
 		switch value := v.(type) {
 		case *val.GeometryStorage:
-			if !value.IsExactLength() {
-				// Out-of-band: pass through the address without loading
-				tb.PutAdaptiveGeomFromOutOfBand(i, value.MaxByteLength(), value.Addr())
-			} else {
-				// Inline: we already have the serialized bytes
-				buf, err := value.GetSerializedBytes(ctx)
-				if err != nil {
-					return err
-				}
-				err = tb.PutAdaptiveGeomFromInline(ctx, i, buf)
-				if err != nil {
-					return err
-				}
-			}
+			tb.PutAdaptiveGeomFromOutOfBand(i, value.MaxByteLength(), value.Addr())
 		default:
 			geo := serializeGeometry(v)
 			err := tb.PutAdaptiveGeomFromInline(ctx, i, geo)
@@ -489,6 +506,23 @@ func PutField(ctx context.Context, ns NodeStore, tb *val.TupleBuilder, i int, v 
 			return err
 		}
 		tb.PutJSONAddr(i, h)
+	case val.JsonAdaptiveEnc:
+		switch value := v.(type) {
+		case *val.JsonAdaptiveStorage:
+			tb.PutAdaptiveJsonFromOutline(i, value)
+		default:
+			j, err := convJson(ctx, v)
+			if err != nil {
+				return err
+			}
+			buf, err := types.MarshallJson(ctx, j)
+			if err != nil {
+				return err
+			}
+			if err = tb.PutAdaptiveJsonFromInline(ctx, i, buf); err != nil {
+				return err
+			}
+		}
 	case val.BytesAddrEnc:
 		h, err := getBlobAddrHash(ctx, ns, v)
 		if err != nil {

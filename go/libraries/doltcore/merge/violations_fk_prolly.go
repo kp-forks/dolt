@@ -690,6 +690,10 @@ func convertKeyBetweenTypes(
 				if err := tb.PutAdaptiveStringFromInline(ctx, i, string(serialized)); err != nil {
 					return nil, err
 				}
+			case val.JsonAdaptiveEnc:
+				if err := tb.PutAdaptiveJsonFromInline(ctx, i, serialized); err != nil {
+					return nil, err
+				}
 			default:
 				panic(fmt.Sprintf("unexpected encoding for adaptive type: %d", toKeyDesc.Types[i].Enc))
 			}
@@ -733,7 +737,7 @@ func convertNativeEncodedFkField(
 			return nil
 		}
 		content = field[:len(field)-1] // strip null terminator
-	case val.StringAdaptiveEnc, val.BytesAdaptiveEnc:
+	case val.StringAdaptiveEnc, val.BytesAdaptiveEnc, val.JsonAdaptiveEnc:
 		adaptiveVal := val.AdaptiveValue(field)
 		if adaptiveVal.IsNull() {
 			tb.PutRaw(i, nil)
@@ -765,6 +769,8 @@ func convertNativeEncodedFkField(
 		return tb.PutAdaptiveStringFromInline(ctx, i, string(content))
 	case val.BytesAdaptiveEnc:
 		return tb.PutAdaptiveBytesFromInline(ctx, i, content)
+	case val.JsonAdaptiveEnc:
+		return tb.PutAdaptiveJsonFromInline(ctx, i, content)
 	default:
 		// Unsupported target encoding; copy raw bytes as-is.
 		tb.PutRaw(i, field)
