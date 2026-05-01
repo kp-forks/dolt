@@ -171,16 +171,26 @@ func ContinueRevert(ctx *sql.Context, dbName string, authorName, authorEmail str
 		return "", 0, 0, 0, fmt.Errorf("fatal: unable to load roots for %s", dbName)
 	}
 
-	commitProps := actions.CommitStagedProps{
-		Message: revertMessage,
-		Date:    ctx.QueryTime(),
-		// Allow an empty commit: when a user resolves a conflict by keeping the current
-		// value, staged == HEAD, so there are no net changes — but the revert commit
-		// is still meaningful.
-		AllowEmpty: true,
-		Name:       authorName,
-		Email:      authorEmail,
+	commitProps, committerSet, err := dsess.NewCommitStagedProps(ctx, revertMessage)
+	if err != nil {
+		return "", 0, 0, 0, fmt.Errorf("error: failed to resolve commit identity: %w", err)
 	}
+	if authorName != "" && authorEmail != "" {
+		commitProps.Author.Name = authorName
+		commitProps.Author.Name = authorEmail
+		// Older versions of Dolt used author as a synonym for committer. Unless specified, we keep that expectation.
+		if !committerSet {
+			commitProps.Committer.Name = authorName
+			commitProps.Committer.Name = authorEmail
+		}
+	}
+	if authorEmail != "" {
+		commitProps.Author.Email = authorEmail
+	}
+	// Allow an empty commit: when a user resolves a conflict by keeping the current
+	// value, staged == HEAD and there are no net changes, but the revert commit
+	// is still meaningful.
+	commitProps.AllowEmpty = true
 
 	pendingCommit, err := doltSession.NewPendingCommit(ctx, dbName, roots, commitProps)
 	if err != nil {
@@ -429,12 +439,18 @@ func createRevertCommit(ctx *sql.Context, dbName string, doltSession *dsess.Dolt
 		return "", fmt.Errorf("fatal: unable to load roots for %s", dbName)
 	}
 
-	commitProps := actions.CommitStagedProps{
-		Message:    message,
-		Date:       ctx.QueryTime(),
-		AllowEmpty: false,
-		Name:       authorName,
-		Email:      authorEmail,
+	commitProps, committerSet, err := dsess.NewCommitStagedProps(ctx, message)
+	if err != nil {
+		return "", fmt.Errorf("error: failed to resolve commit identity: %w", err)
+	}
+	if authorName != "" || authorEmail != "" {
+		commitProps.Author.Name = authorName
+		commitProps.Author.Email = authorEmail
+		// Older ver. of Dolt used author as a synonym for committer. Unless specified, we keep this expectation.
+		if !committerSet {
+			commitProps.Committer.Name = authorName
+			commitProps.Committer.Email = authorEmail
+		}
 	}
 
 	pendingCommit, err := doltSession.NewPendingCommit(ctx, dbName, roots, commitProps)

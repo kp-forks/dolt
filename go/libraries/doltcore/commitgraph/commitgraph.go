@@ -127,7 +127,7 @@ func (q *pq) Less(i, j int) bool {
 		return true
 	}
 	if ei.info.Height == ej.info.Height && ei.info.Meta != nil && ej.info.Meta != nil {
-		return ei.info.Meta.UserTimestamp > ej.info.Meta.UserTimestamp
+		return ei.info.Meta.UserTimestampMillis() > ej.info.Meta.UserTimestampMillis()
 	}
 	return false
 }
