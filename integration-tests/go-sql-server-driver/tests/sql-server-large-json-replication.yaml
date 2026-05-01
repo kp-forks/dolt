@@ -61,7 +61,7 @@ tests:
     - exec: "INSERT INTO large_json VALUES (1, JSON_OBJECT('id', 1, 'payload', REPEAT('abcde', 2200)))"
     - exec: "INSERT INTO large_json VALUES (2, JSON_OBJECT('id', 2, 'payload', REPEAT('fghij', 2200)))"
     - exec: "INSERT INTO large_json VALUES (3, JSON_OBJECT('id', 3, 'payload', REPEAT('klmno', 2200)))"
-    - exec: "INSERT INTO large_json VALUES (4, JSON_OBJECT('id', 4, 'items', JSON_ARRAY(REPEAT('x',3650), REPEAT('y',3650), REPEAT('z',3650))))"
+    - exec: "INSERT INTO large_json VALUES (4, JSON_OBJECT('id', 4, 'items', JSON_ARRAY(REPEAT('x',3700), REPEAT('y',3700), REPEAT('z',3700))))"
     - exec: "INSERT INTO large_json VALUES (5, JSON_OBJECT('id', 5, 'nested', JSON_OBJECT('a', REPEAT('p',5500), 'b', REPEAT('q',5500))))"
     - query: "SELECT COUNT(*) FROM large_json WHERE LENGTH(doc) > 11000"
       result:
