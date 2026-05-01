@@ -22,7 +22,7 @@ jobs:
       fail-fast: true
       matrix:
         os: [ubuntu-22.04]
-        adaptive_encoding: ["false"]
+        adaptive_encoding: ["false", "true"]
     steps:
       - uses: actions/checkout@v6
       - name: Setup Go 1.x
