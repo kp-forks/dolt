@@ -2069,6 +2069,7 @@ func (m *valueMerger) processColumn(ctx *sql.Context, i int, left, right, base v
 	}
 	leftCol, leftColIdx, leftColExists := getColumn(&left, &m.leftMapping, i)
 	rightCol, rightColIdx, rightColExists := getColumn(&right, &m.rightMapping, i)
+	resultType := m.resultVD.Types[i]
 	resultColumn := m.resultSchema.GetNonPKCols().GetByIndex(i)
 	generatedColumn := resultColumn.Generated != ""
 
@@ -2162,8 +2163,6 @@ func (m *valueMerger) processColumn(ctx *sql.Context, i int, left, right, base v
 		if err != nil {
 			return nil, true, err
 		}
-		// TODO: If baseVal is nil because it didn't exist at base, and rightVal is nil because it's nil at base,
-		// is this a change?
 		rightCmp, err := sqlType.Compare(ctx, rightVal, baseVal)
 		if err != nil {
 			return nil, true, err
@@ -2192,8 +2191,6 @@ func (m *valueMerger) processColumn(ctx *sql.Context, i int, left, right, base v
 		return rightVal, false, nil
 	}
 
-	// TODO: If baseVal is nil because it didn't exist at base, and rightVal is nil because it's nil at base,
-	// is this a change?
 	leftCmp, err := sqlType.Compare(ctx, leftVal, baseVal)
 	if err != nil {
 		return nil, true, err
@@ -2249,18 +2246,10 @@ func (m *valueMerger) mergeJSONAddr(ctx context.Context, baseAddr []byte, leftAd
 		return nil, true, err
 	}
 
-	mergedDoc, conflict, err := mergeJSON(ctx, m.ns, baseDoc, leftDoc, rightDoc)
-	if err != nil {
-		return nil, true, err
-	}
-	if conflict {
-		return nil, true, nil
-	}
-
-	return mergedDoc, false, nil
+	return mergeJSON(ctx, m.ns, baseDoc, leftDoc, rightDoc)
 }
 
-func (m *valueMerger) mergeJSONAdaptive(ctx context.Context, baseField []byte, leftField []byte, rightField []byte) (result []byte, conflict bool, err error) {
+func (m *valueMerger) mergeJSONAdaptive(ctx context.Context, baseField []byte, leftField []byte, rightField []byte) (result interface{}, conflict bool, err error) {
 	baseDoc, _, err := val.GetJsonAdaptiveValue(ctx, m.ns, baseField)
 	if err != nil {
 		return nil, true, err
@@ -2290,34 +2279,7 @@ func (m *valueMerger) mergeJSONAdaptive(ctx context.Context, baseField []byte, l
 		return nil, false, err
 	}
 
-	mergedDoc, conflict, err := mergeJSON(ctx, m.ns, baseJson, leftJson, rightJson)
-	if err != nil {
-		return nil, true, err
-	}
-	if conflict {
-		return nil, true, nil
-	}
-
-	jsonBytes, err := types.MarshallJson(ctx, mergedDoc)
-	if err != nil {
-		return nil, true, err
-	}
-
-	// Mirror the storage format of the left input: if the left field was stored
-	// out-of-band (large document), store the merged result out-of-band too.
-	// If the left field was inline (small document), keep the merged result inline.
-	// This matches the behavior of the TupleBuilder, which stores values inline when
-	// the tuple is small and promotes them out-of-band when the tuple is large.
-	if val.AdaptiveValue(leftField).IsOutOfBand() {
-		adaptiveVal, err := val.NewOutOfBandAdaptiveValue(ctx, m.ns, jsonBytes)
-		if err != nil {
-			return nil, true, err
-		}
-		return adaptiveVal, false, nil
-	}
-
-	result = val.AdaptiveValueInlineBytes(jsonBytes)
-	return result, false, nil
+	return mergeJSON(ctx, m.ns, baseJson, leftJson, rightJson)
 }
 
 func mergeJSON(ctx context.Context, ns tree.NodeStore, baseJson, leftJson, rightJson sql.JSONWrapper) (resultDoc sql.JSONWrapper, conflict bool, err error) {
@@ -2431,10 +2393,6 @@ func toJsonWrapper(baseJson any) (sql.JSONWrapper, error) {
 	default:
 		return nil, fmt.Errorf("unexpected type for JSON value: %T", baseJson)
 	}
-}
-
-func isEqual(ctx context.Context, cmp val.TupleComparator, i int, left []byte, right []byte, resultType val.Type) bool {
-	return cmp.CompareValues(ctx, i, left, right, resultType) == 0
 }
 
 func getColumn(tuple *val.Tuple, mapping *val.OrdinalMapping, idx int) (col []byte, colIndex int, exists bool) {
