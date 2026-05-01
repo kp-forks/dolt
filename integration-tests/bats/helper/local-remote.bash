@@ -123,8 +123,6 @@ SKIP_SERVER_TESTS=$(cat <<-EOM
 ~doltpy.bats~
 ~sql-batch.bats~
 ~send-metrics.bats~
-~commit.bats~
-~sql-commit.bats~
 ~reset.bats~
 ~sql-reset.bats~
 ~sql-checkout.bats~

@@ -1,9 +1,16 @@
-load helper/windows-compat
-
-# When DOLT_LEGACY_BIN is set (backward-compat run), old_dolt runs that binary; otherwise runs current dolt.
+# old_dolt runs $DOLT_OLD_BIN when set, otherwise the dolt on PATH.
 old_dolt() {
-  if [ -n "$DOLT_LEGACY_BIN" ]; then
-    "$DOLT_LEGACY_BIN" "$@"
+  if [ -n "$DOLT_OLD_BIN" ]; then
+    "$DOLT_OLD_BIN" "$@"
+  else
+    dolt "$@"
+  fi
+}
+
+# new_dolt runs $DOLT_NEW_BIN when set, otherwise the dolt on PATH.
+new_dolt() {
+  if [ -n "$DOLT_NEW_BIN" ]; then
+    "$DOLT_NEW_BIN" "$@"
   else
     dolt "$@"
   fi
@@ -11,7 +18,7 @@ old_dolt() {
 
 if [ -z "$BATS_TMPDIR" ]; then
     export BATS_TMPDIR=$HOME/batstmp/
-    mkdir $BATS_TMPDIR
+    mkdir "$BATS_TMPDIR"
 fi
 
 setup_common() {
