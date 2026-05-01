@@ -963,7 +963,7 @@ func (idx uniqIndex) removeRow(ctx *sql.Context, key, value val.Tuple) error {
 		return err
 	}
 
-	clusteredIndexKey, err := idx.clusteredBld.ClusteredKeyFromIndexKey(secondaryIndexKey)
+	clusteredIndexKey, err := idx.clusteredBld.ClusteredKeyFromIndexKey(ctx, secondaryIndexKey)
 	if err != nil {
 		return err
 	}
@@ -999,7 +999,7 @@ func (idx uniqIndex) findCollisions(ctx *sql.Context, key, value val.Tuple, cb c
 	collisionDetected := false
 	for _, collision := range collisions {
 		// Next find the key in the primary (aka clustered) index
-		clusteredKey, err := idx.clusteredBld.ClusteredKeyFromIndexKey(collision)
+		clusteredKey, err := idx.clusteredBld.ClusteredKeyFromIndexKey(ctx, collision)
 		if err != nil {
 			return err
 		}
@@ -1702,7 +1702,7 @@ func remapTupleWithColumnDefaults(
 		}
 	}
 
-	return tb.Build(pool)
+	return tb.Build(ctx, pool)
 }
 
 // writeTupleExpression attempts to evaluate the expression string |exprString| against the row provided and write it

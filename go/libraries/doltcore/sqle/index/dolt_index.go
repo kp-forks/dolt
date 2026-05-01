@@ -1099,7 +1099,7 @@ func (di *doltIndex) prollyRangesFromSqlRanges(ctx context.Context, ns tree.Node
 			}
 		}
 		// BuildPermissive() allows nulls in non-null fields
-		tup, err := tb.BuildPermissive(sharePool)
+		tup, err := tb.BuildPermissive(ctx, sharePool)
 		if err != nil {
 			return nil, err
 		}
@@ -1135,7 +1135,7 @@ func (di *doltIndex) prollyRangesFromSqlRanges(ctx context.Context, ns tree.Node
 			}
 		}
 
-		tup, err = tb.BuildPermissive(sharePool)
+		tup, err = tb.BuildPermissive(ctx, sharePool)
 		if err != nil {
 			return nil, err
 		}
