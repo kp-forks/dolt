@@ -49,7 +49,7 @@ func TestStringSerializer(t *testing.T) {
 
 	t.Run("VARCHAR 1 byte length encoding", func(t *testing.T) {
 		tupleBuilder.PutString(0, "abc")
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(context.Background(), varchar20, tupleDesc, tuple, 0, nil)
@@ -65,7 +65,7 @@ func TestStringSerializer(t *testing.T) {
 	})
 	t.Run("VARCHAR 2 byte length encoding", func(t *testing.T) {
 		tupleBuilder.PutString(0, "abc")
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(context.Background(), varchar255, tupleDesc, tuple, 0, nil)
@@ -82,7 +82,7 @@ func TestStringSerializer(t *testing.T) {
 	t.Run("CHAR 1 byte length encoding", func(t *testing.T) {
 		typ := gmstypes.MustCreateString(sqltypes.Char, 25, sql.Collation_Default)
 		tupleBuilder.PutString(0, "abc")
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(context.Background(), typ, tupleDesc, tuple, 0, nil)
@@ -99,7 +99,7 @@ func TestStringSerializer(t *testing.T) {
 	t.Run("CHAR 2 byte length encoding", func(t *testing.T) {
 		typ := gmstypes.MustCreateString(sqltypes.Char, 100, sql.Collation_Default)
 		tupleBuilder.PutString(0, "abc")
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(context.Background(), typ, tupleDesc, tuple, 0, nil)
@@ -118,7 +118,7 @@ func TestStringSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		typ := gmstypes.MustCreateString(sqltypes.VarBinary, 50, sql.Collation_binary)
 		tupleBuilder.PutByteString(0, []byte{'a', 'b', 'c'})
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(context.Background(), typ, tupleDesc, tuple, 0, nil)
@@ -137,7 +137,7 @@ func TestStringSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		typ := gmstypes.MustCreateString(sqltypes.VarBinary, 420, sql.Collation_binary)
 		tupleBuilder.PutByteString(0, []byte{'a', 'b', 'c'})
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(context.Background(), typ, tupleDesc, tuple, 0, nil)
@@ -157,7 +157,7 @@ func TestStringSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		typ := gmstypes.MustCreateString(sqltypes.Binary, 25, sql.Collation_binary)
 		tupleBuilder.PutByteString(0, []byte{'a', 'b', 'c'})
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(context.Background(), typ, tupleDesc, tuple, 0, nil)
@@ -184,7 +184,7 @@ func TestFloatSerializer_Float32(t *testing.T) {
 	tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.Float32Enc})
 	tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 	tupleBuilder.PutFloat32(0, 3.1415927)
-	tuple, err := tupleBuilder.Build(buffPool)
+	tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 	require.NoError(t, err)
 	value, err := s.deserialize(nil, gmstypes.Float32, tupleDesc, tuple, 0, nil)
 	require.NoError(t, err)
@@ -205,7 +205,7 @@ func TestFloatSerializer_Float64(t *testing.T) {
 	tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.Float64Enc})
 	tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 	tupleBuilder.PutFloat64(0, 3.1415926535)
-	tuple, err := tupleBuilder.Build(buffPool)
+	tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 	require.NoError(t, err)
 
 	value, err := s.deserialize(nil, gmstypes.Float64, tupleDesc, tuple, 0, nil)
@@ -227,7 +227,7 @@ func TestYearSerializer(t *testing.T) {
 	tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.YearEnc})
 	tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 	tupleBuilder.PutYear(0, 2030)
-	tuple, err := tupleBuilder.Build(buffPool)
+	tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 	require.NoError(t, err)
 
 	value, err := s.deserialize(nil, gmstypes.Year, tupleDesc, tuple, 0, nil)
@@ -253,7 +253,7 @@ func TestDatetimeSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2012, 6, 21, 15, 45, 17, 0, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, datetimeType, tupleDesc, tuple, 0,
@@ -275,7 +275,7 @@ func TestDatetimeSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2012, 6, 21, 15, 45, 17, .7*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, datetimeType, tupleDesc, tuple, 0, nil)
@@ -296,7 +296,7 @@ func TestDatetimeSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2012, 6, 21, 15, 45, 17, .76*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, datetimeType, tupleDesc, tuple, 0, nil)
@@ -317,7 +317,7 @@ func TestDatetimeSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2012, 6, 21, 15, 45, 17, .765*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, datetimeType, tupleDesc, tuple, 0, nil)
@@ -338,7 +338,7 @@ func TestDatetimeSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2012, 6, 21, 15, 45, 17, .7654*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, datetimeType, tupleDesc, tuple, 0, nil)
@@ -359,7 +359,7 @@ func TestDatetimeSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2012, 6, 21, 15, 45, 17, .76543*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, datetimeType, tupleDesc, tuple, 0, nil)
@@ -380,7 +380,7 @@ func TestDatetimeSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2012, 6, 21, 15, 45, 17, .765432*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, datetimeType, tupleDesc, tuple, 0, nil)
@@ -407,7 +407,7 @@ func TestTimestampSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2017, 03, 21, 14, 25, 9, 0.0*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, timestampType, tupleDesc, tuple, 0, nil)
@@ -428,7 +428,7 @@ func TestTimestampSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2017, 03, 21, 14, 25, 9, 0.7*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, timestampType, tupleDesc, tuple, 0, nil)
@@ -449,7 +449,7 @@ func TestTimestampSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2017, 03, 21, 14, 25, 9, 0.76*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, timestampType, tupleDesc, tuple, 0, nil)
@@ -470,7 +470,7 @@ func TestTimestampSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2017, 03, 21, 14, 25, 9, 0.765*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, timestampType, tupleDesc, tuple, 0, nil)
@@ -491,7 +491,7 @@ func TestTimestampSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2017, 03, 21, 14, 25, 9, 0.7654*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, timestampType, tupleDesc, tuple, 0, nil)
@@ -512,7 +512,7 @@ func TestTimestampSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2017, 03, 21, 14, 25, 9, 0.76543*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, timestampType, tupleDesc, tuple, 0, nil)
@@ -533,7 +533,7 @@ func TestTimestampSerializer(t *testing.T) {
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutDatetime(0,
 			time.Date(2017, 03, 21, 14, 25, 9, 0.765432*1_000_000_000, time.UTC))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, timestampType, tupleDesc, tuple, 0, nil)
@@ -558,7 +558,7 @@ func TestDateSerializer(t *testing.T) {
 	tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 	tupleBuilder.PutDate(0,
 		time.Date(2010, 10, 03, 0, 0, 0, 0.0*1_000_000_000, time.UTC))
-	tuple, err := tupleBuilder.Build(buffPool)
+	tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 	require.NoError(t, err)
 
 	value, err := s.deserialize(nil, gmstypes.Date, tupleDesc, tuple, 0, nil)
@@ -582,7 +582,7 @@ func TestTimeSerializer(t *testing.T) {
 		tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.TimeEnc})
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutSqlTime(0, (0 * time.Second).Microseconds())
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -601,7 +601,7 @@ func TestTimeSerializer(t *testing.T) {
 		tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.TimeEnc})
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutSqlTime(0, (-1 * time.Microsecond).Microseconds())
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -620,7 +620,7 @@ func TestTimeSerializer(t *testing.T) {
 		tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.TimeEnc})
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutSqlTime(0, (-99 * time.Microsecond).Microseconds())
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -639,7 +639,7 @@ func TestTimeSerializer(t *testing.T) {
 		tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.TimeEnc})
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutSqlTime(0, -1*(time.Second).Microseconds())
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -658,7 +658,7 @@ func TestTimeSerializer(t *testing.T) {
 		tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.TimeEnc})
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutSqlTime(0, -1*(time.Second+time.Microsecond).Microseconds())
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -677,7 +677,7 @@ func TestTimeSerializer(t *testing.T) {
 		tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.TimeEnc})
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutSqlTime(0, -1*(time.Second+10*time.Microsecond).Microseconds())
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -696,7 +696,7 @@ func TestTimeSerializer(t *testing.T) {
 		tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.TimeEnc})
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutSqlTime(0, (15*time.Hour + 34*time.Minute + 54*time.Second).Microseconds())
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -715,7 +715,7 @@ func TestTimeSerializer(t *testing.T) {
 		tupleDesc := val.NewTupleDescriptor(val.Type{Enc: val.TimeEnc})
 		tupleBuilder := val.NewTupleBuilder(tupleDesc, ns)
 		tupleBuilder.PutSqlTime(0, (time.Second + 100*time.Millisecond).Microseconds())
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -738,7 +738,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Int8
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Int8Enc)
 		tupleBuilder.PutInt8(0, -2)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -756,7 +756,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Uint8
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Uint8Enc)
 		tupleBuilder.PutUint8(0, 130)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -774,7 +774,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Int16
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Int16Enc)
 		tupleBuilder.PutInt16(0, int16(-2))
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -792,7 +792,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Uint16
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Uint16Enc)
 		tupleBuilder.PutUint16(0, 0x8182)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -810,7 +810,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Int24
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Int32Enc)
 		tupleBuilder.PutInt32(0, -259)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -828,7 +828,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Uint24
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Uint32Enc)
 		tupleBuilder.PutUint32(0, 0x818283)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -846,7 +846,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Int32
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Int32Enc)
 		tupleBuilder.PutInt32(0, -66052)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -864,7 +864,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Uint32
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Uint32Enc)
 		tupleBuilder.PutUint32(0, 0x81828384)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -882,7 +882,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Int64
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Int64Enc)
 		tupleBuilder.PutInt64(0, -283686952306184)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -900,7 +900,7 @@ func TestIntegerSerializer(t *testing.T) {
 		typ := gmstypes.Uint64
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Uint64Enc)
 		tupleBuilder.PutUint64(0, 0x8182838485868788)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -925,7 +925,7 @@ func TestDecimalSerializer(t *testing.T) {
 		dec, err := decimal.NewFromString("0")
 		require.NoError(t, err)
 		tupleBuilder.PutDecimal(0, dec)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -945,7 +945,7 @@ func TestDecimalSerializer(t *testing.T) {
 		dec, err := decimal.NewFromString("100")
 		require.NoError(t, err)
 		tupleBuilder.PutDecimal(0, dec)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -965,7 +965,7 @@ func TestDecimalSerializer(t *testing.T) {
 		dec, err := decimal.NewFromString("1.1")
 		require.NoError(t, err)
 		tupleBuilder.PutDecimal(0, dec)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -985,7 +985,7 @@ func TestDecimalSerializer(t *testing.T) {
 		dec, err := decimal.NewFromString("100")
 		require.NoError(t, err)
 		tupleBuilder.PutDecimal(0, dec)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1005,7 +1005,7 @@ func TestDecimalSerializer(t *testing.T) {
 		dec, err := decimal.NewFromString("1234567890.1234")
 		require.NoError(t, err)
 		tupleBuilder.PutDecimal(0, dec)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1025,7 +1025,7 @@ func TestDecimalSerializer(t *testing.T) {
 		dec, err := decimal.NewFromString("-1234567890.1234")
 		require.NoError(t, err)
 		tupleBuilder.PutDecimal(0, dec)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1045,7 +1045,7 @@ func TestDecimalSerializer(t *testing.T) {
 		dec, err := decimal.NewFromString("1234567890.0001")
 		require.NoError(t, err)
 		tupleBuilder.PutDecimal(0, dec)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1067,7 +1067,7 @@ func TestBitSerializer(t *testing.T) {
 	typ := gmstypes.MustCreateBitType(15)
 	tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.Uint64Enc)
 	tupleBuilder.PutUint64(0, 0x0301)
-	tuple, err := tupleBuilder.Build(buffPool)
+	tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 	require.NoError(t, err)
 
 	value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1089,7 +1089,7 @@ func TestEnumSerializer(t *testing.T) {
 		typ := gmstypes.MustCreateEnumType([]string{"red", "green", "blue"}, sql.Collation_Default)
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.EnumEnc)
 		tupleBuilder.PutEnum(0, 0x03)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1107,7 +1107,7 @@ func TestEnumSerializer(t *testing.T) {
 		typ := gmstypes.MustCreateEnumType(createTestStringSlice(267), sql.Collation_Default)
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.EnumEnc)
 		tupleBuilder.PutEnum(0, 0x0102)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1129,7 +1129,7 @@ func TestSetSerializer(t *testing.T) {
 	typ := gmstypes.MustCreateSetType(createTestStringSlice(12), sql.Collation_Default)
 	tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.SetEnc)
 	tupleBuilder.PutSet(0, 0x0102)
-	tuple, err := tupleBuilder.Build(buffPool)
+	tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 	require.NoError(t, err)
 
 	value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1152,7 +1152,7 @@ func TestBlobSerializer(t *testing.T) {
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.BytesAddrEnc)
 		ns, addr := createTestBlob(t, []byte(`abc`))
 		tupleBuilder.PutBytesAddr(0, addr)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1171,7 +1171,7 @@ func TestBlobSerializer(t *testing.T) {
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.BytesAddrEnc)
 		ns, addr := createTestBlob(t, []byte(`abc`))
 		tupleBuilder.PutBytesAddr(0, addr)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1190,7 +1190,7 @@ func TestBlobSerializer(t *testing.T) {
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.BytesAddrEnc)
 		ns, addr := createTestBlob(t, []byte(`abc`))
 		tupleBuilder.PutBytesAddr(0, addr)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1209,7 +1209,7 @@ func TestBlobSerializer(t *testing.T) {
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.BytesAddrEnc)
 		ns, addr := createTestBlob(t, []byte(`abc`))
 		tupleBuilder.PutBytesAddr(0, addr)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1232,7 +1232,7 @@ func TestJsonSerializer(t *testing.T) {
 	tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.JSONAddrEnc)
 	ns, addr := createTestBlob(t, []byte(`{"a":"b"}`))
 	tupleBuilder.PutJSONAddr(0, addr)
-	tuple, err := tupleBuilder.Build(buffPool)
+	tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 	require.NoError(t, err)
 
 	value, err := s.deserialize(context.Background(), typ, tupleDesc, tuple, 0, ns)
@@ -1256,7 +1256,7 @@ func TestTextSerializer(t *testing.T) {
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.StringAddrEnc)
 		ns, addr := createTestBlob(t, []byte("abcde"))
 		tupleBuilder.PutStringAddr(0, addr)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1275,7 +1275,7 @@ func TestTextSerializer(t *testing.T) {
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.StringAddrEnc)
 		ns, addr := createTestBlob(t, []byte("abcde"))
 		tupleBuilder.PutStringAddr(0, addr)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1294,7 +1294,7 @@ func TestTextSerializer(t *testing.T) {
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.StringAddrEnc)
 		ns, addr := createTestBlob(t, []byte("abcde"))
 		tupleBuilder.PutStringAddr(0, addr)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1313,7 +1313,7 @@ func TestTextSerializer(t *testing.T) {
 		tupleDesc, tupleBuilder := newTupleBuilderForEncoding(val.StringAddrEnc)
 		ns, addr := createTestBlob(t, []byte("abcde"))
 		tupleBuilder.PutStringAddr(0, addr)
-		tuple, err := tupleBuilder.Build(buffPool)
+		tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 		require.NoError(t, err)
 
 		value, err := s.deserialize(nil, typ, tupleDesc, tuple, 0, nil)
@@ -1339,7 +1339,7 @@ func TestGeometrySerializer(t *testing.T) {
 		0x01, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		0xF0, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xF0, 0xBF})
 	tupleBuilder.PutGeometryAddr(0, addr)
-	tuple, err := tupleBuilder.Build(buffPool)
+	tuple, err := tupleBuilder.Build(context.Background(), buffPool)
 	require.NoError(t, err)
 
 	value, err := s.deserialize(context.Background(), typ, tupleDesc, tuple, 0, ns)
